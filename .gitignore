@@ -3,3 +3,6 @@ core/*
 !core/mihomo.ps1
 !core/host.ps1
 !core/host.bat
+!core/mihomo.sh
+!core/host.sh
+!core/store-ids.txt

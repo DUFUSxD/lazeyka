@@ -42,8 +42,9 @@ profile:
 rules:
   - MATCH,REJECT
 "@ | Set-Content $cfg -Encoding ascii
-    Set-Clipboard $secret
-    Write-Host "Secret для расширения (уже в буфере обмена): $secret"
+    # без доступа к буферу обмена (удалённый сеанс) установка не должна падать — secret есть и в выводе, и в config.yaml
+    $note = try { Set-Clipboard $secret; ' (уже в буфере обмена)' } catch { '' }
+    Write-Host "Secret для расширения${note}: $secret"
 }
 
 # Помощник для кнопок «Обновить» и «Запустить ядро» (native messaging, core/host.ps1).
@@ -56,9 +57,9 @@ function Get-ExtId([string]$path) {
 }
 $ext = Join-Path (Split-Path $dir -Parent) 'extension'
 if (Test-Path (Join-Path $dir 'host.bat')) {
-    # ID для папки установщика плюс ID из магазинов (Chrome Web Store, Edge Add-ons) — у них свои, выдаёт магазин.
+    # ID для папки установщика плюс ID из магазинов (store-ids.txt — общий с mihomo.sh; у магазинов ID свои).
     # ponytail: загрузили распакованное из другой папки — popup подскажет
-    $storeIds = @() # дописать ID после первой загрузки в магазин, например 'abcdefghijklmnopabcdefghijklmnop'
+    $storeIds = @(Get-Content (Join-Path $dir 'store-ids.txt') -ErrorAction SilentlyContinue | Where-Object { $_ -match '^[a-p]{32}$' })
     $ids = @(Get-ExtId $ext) + $storeIds
     $hostJson = Join-Path $dir 'host.json'
     $manifest = [ordered]@{

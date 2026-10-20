@@ -1,0 +1,58 @@
+# Проверки на Windows, macOS и Linux: юнит-тесты, установка из ветки, Chrome + помощник, e2e на настоящем mihomo.
+name: Проверки
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Юнит-тесты
+        run: node test.mjs
+
+      - name: Установка (macOS, Linux)
+        if: runner.os != 'Windows'
+        env:
+          LAZEYKA_FROM: ${{ github.workspace }}
+        run: sh install.sh
+
+      - name: Установка (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        env:
+          LAZEYKA_FROM: ${{ github.workspace }}
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File install.ps1
+
+      - name: Ядро, Chrome и помощник
+        run: node ci/check-install.mjs
+
+      - name: e2e на установленном ядре (macOS, Linux)
+        if: runner.os != 'Windows'
+        run: |
+          launchctl bootout "gui/$(id -u)/com.lazeyka.mihomo" 2>/dev/null || true
+          systemctl --user stop lazeyka-mihomo 2>/dev/null || true
+          pkill -f "Lazeyka/core/mihomo" || true
+          sleep 2
+          node e2e.mjs "$HOME/Lazeyka/core/mihomo"
+
+      - name: e2e на установленном ядре (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          Get-Process mihomo -ErrorAction SilentlyContinue | Stop-Process -Force
+          Start-Sleep 2
+          node e2e.mjs "$env:LOCALAPPDATA\Lazeyka\core\mihomo.exe"
