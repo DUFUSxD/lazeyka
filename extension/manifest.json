@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Лазейка",
-  "version": "1.5.0",
-  "description": "VPN в браузере через свои подписки (VLESS/VMess/Trojan/SS/Hysteria2) на локальном mihomo, с правилами по сайтам",
+  "name": "__MSG_extName__",
+  "version": "1.6.0",
+  "description": "__MSG_extDesc__",
+  "default_locale": "ru",
   "icons": {
     "16": "icons/on16.png",
     "32": "icons/on32.png",
@@ -26,7 +27,7 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Лазейка",
+    "default_title": "__MSG_extName__",
     "default_icon": {
       "16": "icons/off16.png",
       "32": "icons/off32.png"
@@ -37,7 +38,7 @@
       "suggested_key": {
         "default": "Alt+Shift+L"
       },
-      "description": "Включить / выключить Лазейку"
+      "description": "__MSG_toggle__"
     }
   },
   "background": {

@@ -2,8 +2,10 @@ import {
   GROUP, AUTO, CONTROLLER, load, norm, parseList, parseSubs, plainName, subName, buildRules, decide, isLan,
   pushConfig, ensureConfig, health, selectServer, testGroup, proxyState, applyProxy, toggle, updateBlocked, refreshSubs, viaVpn,
   exportSettings, importSettings, checkUpdate, newer, UPDATE_CMD, PING_OPTIONS, UPDATE_OPTIONS, SORT_OPTIONS,
-  ensureHwid, subStatus, sortServers, speedTest, subOrigins, iconUrls,
+  ensureHwid, subStatus, sortServers, speedTest, subOrigins, iconUrls, LANG_OPTIONS,
 } from './lib.js';
+import { t, plural, lang, translateDom } from './i18n.js';
+import { serverFilter } from './countries.js';
 
 const $ = (id) => document.getElementById(id);
 const el = (tag, className = '', textContent = '') => Object.assign(document.createElement(tag), { className, textContent });
@@ -14,13 +16,15 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const host = (cmd) => chrome.runtime.sendMessage({ host: cmd });
 // Почему помощник недоступен — человеческими словами; null — помощник есть, ошибка другая.
 function hostProblem(e = '') {
-  if (/forbidden/i.test(e)) return 'Лазейка загружена не из папки установщика (%LOCALAPPDATA%\\Lazeyka\\extension), поэтому кнопка не работает. Загрузи расширение оттуда или выполни команду.';
-  if (/not found/i.test(e)) return 'Обновление в один клик заработает после этой версии — сейчас нужно один раз выполнить команду.';
+  if (/forbidden/i.test(e)) return t('Лазейка загружена не из папки установщика (%LOCALAPPDATA%\\Lazeyka\\extension), поэтому кнопка не работает. Загрузи расширение оттуда или выполни команду.');
+  if (/not found/i.test(e)) return t('Обновление в один клик заработает после этой версии — сейчас нужно один раз выполнить команду.');
   return null;
 }
 const WHY = { list: 'твой список', blocked: 'заблокирован в РФ', ru: 'российский сайт', rest: 'остальные сайты', lan: 'локальная сеть' };
 
-let s = await load();
+let s = await load(); // он же ставит язык
+document.documentElement.lang = lang();
+translateDom(document.body);
 s.hwid ||= await ensureHwid(); // нужен в конфиге ядра, если popup открыли раньше, чем проснулся service worker
 let on = false;
 let h;                 // сводка health(); undefined — ещё не загрузили, null — ядро недоступно
@@ -36,11 +40,11 @@ const site = norm(tabHost);
 // --- мелочи интерфейса
 let toastTimer;
 function toast(text, kind = '') {
-  const t = $('toast');
-  t.textContent = text;
-  t.className = `toast show ${kind}`;
+  const bar = $('toast');
+  bar.textContent = text;
+  bar.className = `toast show ${kind}`;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.className = 'toast'; }, kind === 'err' ? 5000 : 2500);
+  toastTimer = setTimeout(() => { bar.className = 'toast'; }, kind === 'err' ? 5000 : 2500);
 }
 
 const ALERTS = {
@@ -64,33 +68,33 @@ function showAlert(kind) {
   $('servers').hidden = !!kind && kind !== 'other';
   if (!kind) return;
   const [title, text, code, btn] = ALERTS[kind];
-  $('alertTitle').textContent = title;
-  $('alertText').textContent = text;
+  $('alertTitle').textContent = t(title);
+  $('alertText').textContent = t(text);
   $('alertCode').hidden = !code;
   $('alertCode').textContent = code ?? '';
   $('alertBtn').hidden = !btn;
-  $('alertBtn').textContent = btn ?? '';
+  $('alertBtn').textContent = btn ? t(btn) : '';
   $('alertBtn2').hidden = !ALERTS[kind][4];
-  $('alertBtn2').textContent = ALERTS[kind][4] ?? '';
+  $('alertBtn2').textContent = ALERTS[kind][4] ? t(ALERTS[kind][4]) : '';
 }
 $('alertBtn').onclick = () => run(() => busy($('alertBtn'), async () => ALERT_ACTIONS[alertKind]?.()));
-$('alertBtn2').onclick = () => navigator.clipboard.writeText(CORE_CMD).then(() => toast('Команда скопирована: Win+R → вставить → Enter'));
+$('alertBtn2').onclick = () => navigator.clipboard.writeText(CORE_CMD).then(() => toast(t('Команда скопирована: Win+R → вставить → Enter')));
 
 async function startCore() {
   const r = await host('start');
   if (!r?.ok) {
     await navigator.clipboard.writeText(CORE_CMD).catch(() => {});
     const why = /forbidden/i.test(r?.error) ? hostProblem(r.error)
-      : /not found/i.test(r?.error) ? 'Кнопка заработает после обновления через команду.' : `Не получилось: ${r?.error}.`;
-    throw new Error(`${why} Пока — Win+R, вставь (команда уже скопирована), Enter`);
+      : /not found/i.test(r?.error) ? t('Кнопка заработает после обновления через команду.') : t('Не получилось: {0}.', r?.error);
+    throw new Error(t('{0} Пока — Win+R, вставь (команда уже скопирована), Enter', why));
   }
-  toast('Запускаю ядро…');
+  toast(t('Запускаю ядро…'));
   for (let i = 0; i < 20; i++) {
     await sleep(500);
     try { await render(); } catch { continue; }
-    if (alertKind !== 'core') return toast('Ядро запущено ✓');
+    if (alertKind !== 'core') return toast(t('Ядро запущено ✓'));
   }
-  throw new Error('Ядро не ответило. Попробуй команду: Win+R, вставь, Enter');
+  throw new Error(t('Ядро не ответило. Попробуй команду: Win+R, вставь, Enter'));
 }
 
 // Все действия через run: понятные сообщения вместо исключений.
@@ -113,28 +117,28 @@ async function busy(btn, fn) {
 function delayOf(name) {
   const n = h?.nodes.get(name);
   if (!n || n.delay === null) return ['', ''];
-  if (n.delay === 0) return ['нет ответа', 'bad'];
-  return [`${n.delay} мс`, n.delay < 300 ? 'good' : n.delay < 800 ? 'mid' : 'slow'];
+  if (n.delay === 0) return [t('нет ответа'), 'bad'];
+  return [t('{0} мс', n.delay), n.delay < 300 ? 'good' : n.delay < 800 ? 'mid' : 'slow'];
 }
 
 function renderPower() {
   const bad = on && (h === null || h?.empty || h?.dead);
   $('power').className = `power${on ? (bad ? ' err' : ' on') : ''}`;
   $('power').setAttribute('aria-pressed', String(on));
-  $('power').setAttribute('aria-label', on ? 'Выключить Лазейку' : 'Включить Лазейку');
+  $('power').setAttribute('aria-label', t(on ? 'Выключить Лазейку' : 'Включить Лазейку'));
   $('status').className = `status${on ? (bad ? ' err' : ' on') : ''}`;
-  let status = on ? 'Включено' : 'Выключено';
+  let status = t(on ? 'Включено' : 'Выключено');
   let sub = '';
-  if (on && h === null) status = 'Нет связи с ядром';
-  else if (on && h?.empty) status = 'Нет серверов';
-  else if (on && h?.dead) status = 'Все серверы недоступны';
+  if (on && h === null) status = t('Нет связи с ядром');
+  else if (on && h?.empty) status = t('Нет серверов');
+  else if (on && h?.dead) status = t('Все серверы недоступны');
   if (h && !h.empty) {
     const cur = h.now === AUTO ? h.autoNow : h.now;
-    if (h.now === AUTO && cur === 'REJECT') sub = h.dead ? '⚡ Авто: живых серверов нет' : '⚡ Авто подбирает сервер…';
+    if (h.now === AUTO && cur === 'REJECT') sub = t(h.dead ? '⚡ Авто: живых серверов нет' : '⚡ Авто подбирает сервер…');
     else {
       // при нескольких подписках — чей это сервер
       const from = h.subs.length > 1 ? h.subs.find((x) => x.servers.includes(cur))?.name : null;
-      sub = `${h.now === AUTO ? '⚡ Авто → ' : ''}${plainName(cur)}${from ? ` (${from})` : ''}${delayOf(cur)[0] ? ` · ${delayOf(cur)[0]}` : ''}`;
+      sub = `${h.now === AUTO ? `${t('⚡ Авто')} → ` : ''}${plainName(cur)}${from ? ` (${from})` : ''}${delayOf(cur)[0] ? ` · ${delayOf(cur)[0]}` : ''}`;
     }
   }
   $('status').textContent = status;
@@ -152,7 +156,7 @@ function renderSite() {
   for (const b of document.querySelectorAll('#site .seg button')) b.setAttribute('aria-checked', String(b.dataset.m === mode));
   const [vpn, why] = isLan(tabHost) ? [false, 'lan'] : decide(tabHost, buildRules(s));
   $('why').className = `why ${vpn ? 'vpn' : 'direct'}`;
-  $('why').textContent = `${vpn ? 'Через VPN' : 'Напрямую'} — ${bound ? 'свой сервер' : WHY[why]}${on ? '' : ' (когда включено)'}`;
+  $('why').textContent = `${t(vpn ? 'Через VPN' : 'Напрямую')} — ${t(bound ? 'свой сервер' : WHY[why])}${on ? '' : ` ${t('(когда включено)')}`}`;
 
   $('siteServerRow').hidden = mode === 'direct';
   const names = h ? h.all.filter((n) => n !== AUTO) : [];
@@ -164,26 +168,27 @@ function renderSite() {
     g.append(...sub.servers.map((n) => new Option(plainName(n), n)));
     return g;
   });
-  const extra = bound && bound !== AUTO && !names.includes(bound) ? [new Option(`${plainName(bound)} (нет в подписке)`, bound)] : [];
-  $('siteServer').replaceChildren(new Option('Как у всех', ''), new Option('⚡ Авто', AUTO), ...groups, ...extra);
+  const extra = bound && bound !== AUTO && !names.includes(bound) ? [new Option(t('{0} (нет в подписке)', plainName(bound)), bound)] : [];
+  $('siteServer').replaceChildren(new Option(t('Как у всех'), ''), new Option(t('⚡ Авто'), AUTO), ...groups, ...extra);
   $('siteServer').value = bound ?? '';
   $('siteWarn').hidden = !missing;
-  $('siteWarn').textContent = missing ? `⚠ Сервера «${plainName(bound)}» больше нет в подписке — сайт заблокирован. Выбери другой.` : '';
+  $('siteWarn').textContent = missing ? t('⚠ Сервера «{0}» больше нет в подписке — сайт заблокирован. Выбери другой.', plainName(bound)) : '';
 }
 
 function renderServers() {
-  const q = $('search').value.trim().toLowerCase();
+  const q = $('search').value.trim();
   if (!h || (h.empty && !h.subs.length)) {
     $('count').textContent = '';
     $('search').hidden = true;
     const li = document.createElement('li');
     li.className = 'empty';
-    li.textContent = h ? 'Серверов нет — проверь ссылки подписок в настройках' : h === null ? '—' : 'Загружаю…';
+    li.textContent = h ? t('Серверов нет — проверь ссылки подписок в настройках') : h === null ? '—' : t('Загружаю…');
     return $('list').replaceChildren(li);
   }
   $('count').textContent = String(h.all.length - 1);
   $('search').hidden = h.all.length <= 9;
-  const match = (n) => !q || plainName(n).toLowerCase().includes(q);
+  const fits = serverFilter(q); // по имени, а ещё по стране: «Британия» найдёт 🇬🇧, UK, United Kingdom
+  const match = (n) => fits(plainName(n));
   // выбранный, текущий у ⚡ Авто и привязанные к сайтам не прячем, даже если не отвечают
   const keep = new Set([h.now, h.autoNow, ...Object.values(s.siteServers)]);
   let hidden = 0;
@@ -201,7 +206,7 @@ function renderServers() {
     return servers.length || !q ? [...subHeader(sub), ...servers.map(nodeItem)] : [];
   })];
   if (hidden) {
-    const b = el('button', 'btn small', `Скрыто неработающих: ${hidden} — показать`);
+    const b = el('button', 'btn small', t('Скрыто неработающих: {0} — показать', hidden));
     b.onclick = () => { showDead = true; renderServers(); };
     const li = el('li', 'more');
     li.append(b);
@@ -235,7 +240,7 @@ async function fixSubs(indices) {
   h = await health(s);
   renderPower(); renderServers(); renderSite();
   const moved = s.subsViaVpn.find((u) => !before.has(u) && errors.has(u) && !errors.get(u));
-  if (moved) toast(`Сайт подписки ${new URL(moved).host} недоступен напрямую — скачал через VPN ✓`);
+  if (moved) toast(t('Сайт подписки {0} недоступен напрямую — скачал через VPN ✓', new URL(moved).host));
   return errors;
 }
 
@@ -248,18 +253,18 @@ function nodeItem(n) {
   b.setAttribute('aria-selected', String(n === h.now));
   const name = document.createElement('span');
   name.className = 'name';
-  name.textContent = isAuto ? '⚡ Авто' : plainName(n);
+  name.textContent = isAuto ? t('⚡ Авто') : plainName(n);
   if (isAuto) {
     const hint = document.createElement('span');
     hint.className = 'hint';
-    hint.textContent = h.autoNow === 'REJECT' ? 'самый быстрый живой' : `→ ${plainName(h.autoNow)}`;
+    hint.textContent = h.autoNow === 'REJECT' ? t('самый быстрый живой') : `→ ${plainName(h.autoNow)}`;
     name.append(hint);
   }
   const delay = document.createElement('span');
   delay.className = `delay ${cls}`;
   delay.textContent = d;
   b.append(name, delay);
-  b.title = isAuto ? 'Сам выбирает самый быстрый живой сервер и переключается, если текущий упал' : plainName(n);
+  b.title = isAuto ? t('Сам выбирает самый быстрый живой сервер и переключается, если текущий упал') : plainName(n);
   b.onclick = () => run(async () => { await selectServer(n, s.secret); await refreshHealth(); });
   const li = el('li', 'node-row');
   li.append(b);
@@ -270,15 +275,15 @@ function nodeItem(n) {
 // Тест скорости любого сервера, не переключаясь на него. Результаты живут до закрытия окна.
 const speeds = new Map(); // сервер → Мбит/с
 let speedNow = null;      // сервер, который меряем сейчас
-const mbit = (v) => `${v < 10 ? v.toFixed(1) : Math.round(v)} Мбит/с`;
+const mbit = (v) => t('{0} Мбит/с', v < 10 ? v.toFixed(1) : Math.round(v));
 function speedButton(n) {
   const v = speeds.get(n);
   const b = el('button', `spd${v !== undefined ? ' has' : ''}${speedNow === n ? ' busy' : ''}`, speedNow === n ? '…' : v === undefined ? '⇣' : mbit(v));
-  b.title = 'Тест скорости: скачать до 25 МБ через этот сервер (расходует трафик подписки)';
-  b.setAttribute('aria-label', `Тест скорости: ${plainName(n)}`);
+  b.title = t('Тест скорости: скачать до 25 МБ через этот сервер (расходует трафик подписки)');
+  b.setAttribute('aria-label', t('Тест скорости: {0}', plainName(n)));
   b.disabled = !!speedNow;
   b.onclick = () => run(async () => {
-    if (!on) throw new Error('Включи Лазейку — тест скорости идёт через неё');
+    if (!on) throw new Error(t('Включи Лазейку — тест скорости идёт через неё'));
     speedNow = n;
     renderServers();
     try { speeds.set(n, await speedTest(n, s)); } finally { speedNow = null; renderServers(); }
@@ -292,12 +297,12 @@ const gb = (b) => (b / GB).toFixed(b < 10 * GB ? 1 : 0);
 function subHeader(sub, folded = false) {
   const st = subStatus(sub.info);
   const parts = [];
-  if (st?.total) parts.push(`${gb(st.used)} из ${gb(st.total)} ГБ`); else if (st?.used) parts.push(`${gb(st.used)} ГБ`);
-  if (st?.expireMs) parts.push(st.expired ? 'истекла' : `до ${new Date(st.expireMs).toLocaleDateString('ru', { day: 'numeric', month: 'long' })}`);
-  if (sub.url && viaVpn(s, sub.url)) parts.push('через VPN');
+  if (st?.total) parts.push(t('{0} из {1} ГБ', gb(st.used), gb(st.total))); else if (st?.used) parts.push(t('{0} ГБ', gb(st.used)));
+  if (st?.expireMs) parts.push(st.expired ? t('истекла') : t('до {0}', new Date(st.expireMs).toLocaleDateString(lang(), { day: 'numeric', month: 'long' })));
+  if (sub.url && viaVpn(s, sub.url)) parts.push(t('через VPN'));
   const meta = (sub.url && s.subMeta[sub.url]) || {};
   const links = [['support', 'Поддержка'], ['web', 'Кабинет']].filter(([k]) => /^https?:\/\//.test(meta[k] ?? '')).map(([k, text]) => {
-    const a = Object.assign(el('a', 'sub-link', text), { href: meta[k], target: '_blank', rel: 'noopener noreferrer' });
+    const a = Object.assign(el('a', 'sub-link', t(text)), { href: meta[k], target: '_blank', rel: 'noopener noreferrer' });
     a.title = new URL(meta[k]).host;
     return a;
   });
@@ -316,13 +321,12 @@ function subHeader(sub, folded = false) {
   li.append(subIcon(sub), lines);
   if (sub.servers.length && sub.url) {
     // свернуть/развернуть — стрелкой или щелчком по шапке (кроме ссылок провайдера)
-    const n = sub.servers.length;
-    const b = el('button', 'sub-toggle', folded ? `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'сервер' : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'сервера' : 'серверов'}` : '');
+    const b = el('button', 'sub-toggle', folded ? plural(sub.servers.length, 'сервер|сервера|серверов') : '');
     b.insertAdjacentHTML('beforeend', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>');
     b.dataset.url = sub.url;
     b.setAttribute('aria-expanded', String(!folded));
-    b.setAttribute('aria-label', `${folded ? 'Развернуть' : 'Свернуть'} серверы подписки «${sub.name}»`);
-    b.title = folded ? 'Показать серверы' : 'Свернуть';
+    b.setAttribute('aria-label', t(folded ? 'Развернуть серверы подписки «{0}»' : 'Свернуть серверы подписки «{0}»', sub.name));
+    b.title = t(folded ? 'Показать серверы' : 'Свернуть');
     li.classList.add('foldable');
     li.append(b);
     li.onclick = (e) => { if (!e.target.closest('a')) run(() => toggleSub(sub.url)); };
@@ -334,16 +338,16 @@ function subHeader(sub, folded = false) {
   const box = document.createElement('li');
   box.className = 'sub-error';
   const why = document.createElement('span');
-  why.textContent = `⚠ ${err?.text ?? (fixing ? 'Не скачалась — пробую ещё раз…' : 'Подписка не скачалась')}`;
+  why.textContent = `⚠ ${err?.text ?? t(fixing ? 'Не скачалась — пробую ещё раз…' : 'Подписка не скачалась')}`;
   box.append(why);
   if (sub.url && !viaVpn(s, sub.url) && err && err.kind !== 'notfound') {
     const b = document.createElement('button');
     b.className = 'btn small';
-    b.textContent = 'Скачать через VPN';
+    b.textContent = t('Скачать через VPN');
     b.onclick = () => run(() => busy(b, async () => {
       s.subsViaVpn = [...s.subsViaVpn, sub.url];
       await chrome.storage.local.set({ subsViaVpn: s.subsViaVpn });
-      toast('Скачиваю через VPN…');
+      toast(t('Скачиваю через VPN…'));
       await pushConfig(s);
       const e = (await fixSubs([s.subs.indexOf(sub.url)])).get(sub.url);
       if (e) throw new Error(e.text);
@@ -414,13 +418,13 @@ async function render() {
 
 // Скорость и объём через VPN: mihomo раз в секунду шлёт строку JSON в /traffic. Сайты «напрямую» сюда не попадают.
 let traffic = null;
-const size = (b) => (b < 1024 ** 2 ? `${Math.round(b / 1024)} КБ` : b < GB ? `${(b / 1024 ** 2).toFixed(1)} МБ` : `${(b / GB).toFixed(2)} ГБ`);
+const size = (b) => (b < 1024 ** 2 ? t('{0} КБ', Math.round(b / 1024)) : b < GB ? t('{0} МБ', (b / 1024 ** 2).toFixed(1)) : t('{0} ГБ', (b / GB).toFixed(2)));
 async function startTraffic() {
   if (traffic) return;
   const ctrl = traffic = new AbortController();
   try {
-    const r = await fetch(`http://${CONTROLLER}/traffic`, { headers: { Authorization: `Bearer ${s.secret}` }, signal: ctrl.signal });
-    const reader = r.body.pipeThrough(new TextDecoderStream()).getReader();
+    const res = await fetch(`http://${CONTROLLER}/traffic`, { headers: { Authorization: `Bearer ${s.secret}` }, signal: ctrl.signal });
+    const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
     let buf = '';
     for (;;) {
       const { done, value } = await reader.read();
@@ -429,9 +433,9 @@ async function startTraffic() {
       buf = lines.pop();
       const last = lines.filter(Boolean).at(-1);
       if (!last) continue;
-      const t = JSON.parse(last);
-      const total = t.upTotal + t.downTotal;
-      $('rate').textContent = `↓ ${size(t.down)}/с  ↑ ${size(t.up)}/с${total >= 0 ? ` · всего ${size(total)}` : ''}`;
+      const r = JSON.parse(last);
+      const total = r.upTotal + r.downTotal;
+      $('rate').textContent = `${t('↓ {0}/с  ↑ {1}/с', size(r.down), size(r.up))}${total >= 0 ? ` · ${t('всего {0}', size(total))}` : ''}`;
     }
   } catch { /* выключили, закрыли окно или ядро упало */ }
   if (traffic === ctrl) stopTraffic();
@@ -449,7 +453,7 @@ async function renderNews() {
   const url = s.subs.find((u) => s.subMeta[u]?.announce && !newsSeen.includes(key(u)));
   $('news').hidden = !url;
   if (!url) return;
-  $('newsTitle').textContent = `Сообщение от «${subName(s, url)}»`;
+  $('newsTitle').textContent = t('Сообщение от «{0}»', subName(s, url));
   $('newsText').textContent = s.subMeta[url].announce;
   $('newsClose').onclick = async () => {
     await chrome.storage.local.set({ newsSeen: [...newsSeen, key(url)].slice(-20) });
@@ -481,9 +485,9 @@ $('power').onclick = () => run(() => busy($('power'), async () => { on = await t
 async function saveSite(push) {
   await chrome.storage.local.set({ vpnList: s.vpnList, directList: s.directList, siteServers: s.siteServers });
   renderSite();
-  if (push) { toast('Применяю…'); await pushConfig(s); }
+  if (push) { toast(t('Применяю…')); await pushConfig(s); }
   if (on) { await applyProxy(s); await chrome.tabs.reload(tab.id); }
-  toast(on ? 'Готово — страница перезагружается' : 'Сохранено');
+  toast(t(on ? 'Готово — страница перезагружается' : 'Сохранено'));
   if (h) await refreshHealth();
 }
 
@@ -511,51 +515,53 @@ $('siteServer').onchange = () => run(() => busy($('siteServer'), async () => {
 
 $('ping').onclick = () => run(() => busy($('ping'), async () => {
   $('ping').textContent = '…';
-  try { await testGroup(GROUP, s.secret); await refreshHealth(); } finally { $('ping').textContent = 'Пинг'; }
+  try { await testGroup(GROUP, s.secret); await refreshHealth(); } finally { $('ping').textContent = t('Пинг'); }
 }));
 
 $('refresh').onclick = () => run(() => busy($('refresh'), async () => {
-  toast('Обновляю подписки и списки…');
+  toast(t('Обновляю подписки и списки…'));
   const [blocked] = await Promise.allSettled([updateBlocked()]);
   s = await load();
   fillSettings();
   const failed = [...(await fixSubs(s.subs.map((_, i) => i))).values()].find(Boolean);
   if (failed) throw new Error(failed.text); // только адрес сайта, без токена из ссылки
   if (blocked.status === 'rejected') throw blocked.reason;
-  toast('Обновлено ✓');
+  toast(t('Обновлено ✓'));
 }));
 
 $('search').oninput = renderServers;
 
 // --- обновления
-const fmtTime = (t) => new Date(t).toLocaleString('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const fmtTime = (ms) => new Date(ms).toLocaleString(lang(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 async function renderUpdate() {
   const { update, dismissedVersion } = await chrome.storage.local.get(['update', 'dismissedVersion']);
   const has = !!update && newer(update.latest, VERSION);
   $('upd').hidden = !has || dismissedVersion === update.latest;
   if (has) {
-    $('updTitle').textContent = `Доступна версия ${update.latest}`;
-    $('updNotes').replaceChildren(...update.notes.slice(0, 4).map((n) => Object.assign(document.createElement('li'), { textContent: n })));
+    $('updTitle').textContent = t('Доступна версия {0}', update.latest);
+    // заметки из CHANGELOG — только по-русски; по-английски остаётся ссылка «All changes»
+    $('updNotes').replaceChildren(...(lang() === 'ru' ? update.notes : []).slice(0, 4).map((n) => Object.assign(document.createElement('li'), { textContent: n })));
   }
-  $('verInfo').textContent = `Установлена ${VERSION}${update ? ` · проверено ${fmtTime(update.checkedAt)}` : ''}${has ? ` · есть ${update.latest}` : update ? ' · это последняя' : ''}`;
+  $('verInfo').textContent = [t('Установлена {0}', VERSION), update && t('проверено {0}', fmtTime(update.checkedAt)),
+    has ? t('есть {0}', update.latest) : update && t('это последняя')].filter(Boolean).join(' · ');
 }
 
 function showManualUpdate(err) {
   $('upd').hidden = false;
   $('updManual').hidden = false;
   $('updCmd').textContent = UPDATE_CMD;
-  $('updErr').textContent = hostProblem(err) ?? `Не получилось обновить автоматически: ${err}`;
+  $('updErr').textContent = hostProblem(err) ?? t('Не получилось обновить автоматически: {0}', err);
 }
 
 $('updBtn').onclick = () => run(() => busy($('updBtn'), async () => {
-  $('updBtn').textContent = 'Обновляю…';
+  $('updBtn').textContent = t('Обновляю…');
   try {
     const r = await host('update');
-    if (r?.ok && r.same) toast('GitHub ещё отдаёт старую версию — попробуй через пару минут', 'err');
-    else if (r?.ok) toast(`Обновлено до ${r.version} — перезапускаюсь…`); // service worker сам перезагрузит расширение
+    if (r?.ok && r.same) toast(t('GitHub ещё отдаёт старую версию — попробуй через пару минут'), 'err');
+    else if (r?.ok) toast(t('Обновлено до {0} — перезапускаюсь…', r.version)); // service worker сам перезагрузит расширение
     else showManualUpdate(r?.error);
   } finally {
-    $('updBtn').textContent = 'Обновить';
+    $('updBtn').textContent = t('Обновить');
   }
 }));
 $('updLater').onclick = async () => {
@@ -563,18 +569,18 @@ $('updLater').onclick = async () => {
   await chrome.storage.local.set({ dismissedVersion: update?.latest });
   $('upd').hidden = true;
 };
-$('updCopy').onclick = () => navigator.clipboard.writeText(UPDATE_CMD).then(() => toast('Команда скопирована: Win+R → вставить → Enter'));
+$('updCopy').onclick = () => navigator.clipboard.writeText(UPDATE_CMD).then(() => toast(t('Команда скопирована: Win+R → вставить → Enter')));
 $('updReload').onclick = () => chrome.runtime.reload();
 $('checkUpd').onclick = () => run(() => busy($('checkUpd'), async () => {
   const u = await checkUpdate();
   await chrome.storage.local.remove('dismissedVersion');
   await renderUpdate();
-  if (newer(u.latest, VERSION)) { showMain(); toast(`Есть версия ${u.latest}`); } else toast('У тебя последняя версия ✓');
+  if (newer(u.latest, VERSION)) { showMain(); toast(t('Есть версия {0}', u.latest)); } else toast(t('У тебя последняя версия ✓'));
 }));
 
 // --- настройки
-for (const [id, opts] of [['pingInterval', PING_OPTIONS], ['updateEvery', UPDATE_OPTIONS], ['sortServers', SORT_OPTIONS]]) {
-  $(id).replaceChildren(...opts.map(([v, t]) => new Option(t, v)));
+for (const [id, opts] of [['pingInterval', PING_OPTIONS], ['updateEvery', UPDATE_OPTIONS], ['sortServers', SORT_OPTIONS], ['lang', LANG_OPTIONS]]) {
+  $(id).replaceChildren(...opts.map(([v, label]) => new Option(t(label), v)));
 }
 
 function fillSettings() {
@@ -582,14 +588,14 @@ function fillSettings() {
   bindings = { ...s.siteServers };
   for (const b of document.querySelectorAll('#restSeg button')) b.setAttribute('aria-checked', String(b.dataset.v === rest));
   for (const k of ['ruDirect', 'useBlocked', 'webrtc', 'subViaVpn', 'hideDead', 'pingOnOpen']) $(k).checked = s[k];
-  for (const k of ['pingInterval', 'updateEvery', 'sortServers']) $(k).value = s[k];
+  for (const k of ['pingInterval', 'updateEvery', 'sortServers', 'lang']) $(k).value = s[k];
   renderMetaHint();
   for (const k of ['vpnList', 'directList']) $(k).value = s[k].join('\n');
   $('subs').value = s.subs.map((u) => (s.subNames[u] ? `${s.subNames[u]} ${u}` : u)).join('\n');
   $('secret').value = s.secret;
   $('blockedInfo').textContent = s.blocked.length
-    ? `Список itdoginfo: ${s.blocked.length} доменов, обновлён ${new Date(s.blockedAt).toLocaleDateString('ru')}`
-    : 'Список ещё не скачан — нажми ⟳ на главном экране';
+    ? t('Список itdoginfo: {0}, обновлён {1}', plural(s.blocked.length, 'домен|домена|доменов'), new Date(s.blockedAt).toLocaleDateString(lang()))
+    : t('Список ещё не скачан — нажми ⟳ на главном экране');
   renderBindings();
 }
 
@@ -598,15 +604,15 @@ function renderBindings() {
   $('noBindings').hidden = entries.length > 0;
   $('bindings').replaceChildren(...entries.map(([d, n]) => {
     const li = document.createElement('li');
-    const t = document.createElement('span');
-    t.textContent = `${d} → ${n === AUTO ? '⚡ Авто' : plainName(n)}`;
-    t.title = t.textContent;
+    const label = document.createElement('span');
+    label.textContent = `${d} → ${n === AUTO ? t('⚡ Авто') : plainName(n)}`;
+    label.title = label.textContent;
     const x = document.createElement('button');
     x.className = 'icon-btn small';
     x.textContent = '✕';
-    x.setAttribute('aria-label', `Убрать свой сервер для ${d}`);
+    x.setAttribute('aria-label', t('Убрать свой сервер для {0}', d));
     x.onclick = () => { delete bindings[d]; renderBindings(); };
-    li.append(t, x);
+    li.append(label, x);
     return li;
   }));
 }
@@ -641,8 +647,8 @@ async function renderMetaHint() {
   const ok = origins.length > 0 && await chrome.permissions.contains({ origins });
   $('metaGrant').hidden = !origins.length || ok;
   $('metaHint').textContent = !origins.length ? ''
-    : ok ? 'Название, поддержка и сообщения провайдера подтягиваются сами ✓'
-      : 'Лазейка может подтянуть от провайдера название, ссылку на поддержку и его сообщения. Браузер спросит разрешение на сайт панели.';
+    : t(ok ? 'Название, поддержка и сообщения провайдера подтягиваются сами ✓'
+      : 'Лазейка может подтянуть от провайдера название, ссылку на поддержку и его сообщения. Браузер спросит разрешение на сайт панели.');
 }
 $('metaGrant').onclick = () => {
   let subs = s.subs;
@@ -650,11 +656,11 @@ $('metaGrant').onclick = () => {
   // request — первым делом в обработчике клика, иначе браузер не покажет запрос
   chrome.permissions.request({ origins: subOrigins(subs) }).then((ok) => run(async () => {
     await renderMetaHint();
-    if (!ok) return toast('Без разрешения название и ссылки провайдера не подтянутся', 'err');
-    toast('Загружаю данные провайдера…');
+    if (!ok) return toast(t('Без разрешения название и ссылки провайдера не подтянутся'), 'err');
+    toast(t('Загружаю данные провайдера…'));
     await pullMeta();
     await renderMetaHint();
-    toast('Готово ✓');
+    toast(t('Готово ✓'));
   }));
 };
 
@@ -667,11 +673,12 @@ async function apply(next) {
   await chrome.storage.local.set(settings);
   s = next;
   if (on) await applyProxy(s);
-  if (push) { toast('Загружаю подписки…'); await pushConfig(s); }
+  if (push) { toast(t('Загружаю подписки…')); await pushConfig(s); }
 }
 
 $('save').onclick = () => run(() => busy($('save'), async () => {
   const subs = parseSubs($('subs').value);
+  const wasLang = s.lang;
   await apply({
     ...s,
     subs: subs.map((x) => x.url),
@@ -687,32 +694,36 @@ $('save').onclick = () => run(() => busy($('save'), async () => {
     sortServers: $('sortServers').value,
     hideDead: $('hideDead').checked,
     pingOnOpen: $('pingOnOpen').checked,
+    lang: $('lang').value,
     vpnList: parseList($('vpnList').value),
     directList: parseList($('directList').value),
     siteServers: bindings,
   });
+  if (s.lang !== wasLang) return location.reload(); // новый язык — перерисовать окно целиком (настройки уже сохранены)
   showMain();
-  toast('Сохранено ✓');
+  toast(t('Сохранено ✓'));
   await render();
   run(pullMeta); // новая подписка — сразу её название и ссылки (если разрешение уже есть)
 }));
 
 $('export').onclick = () => run(async () => {
   await navigator.clipboard.writeText(exportSettings(s));
-  toast('Строка настроек скопирована — вставь её на другом компьютере');
+  toast(t('Строка настроек скопирована — вставь её на другом компьютере'));
 });
 
 $('import').onclick = () => run(() => busy($('import'), async () => {
+  const wasLang = s.lang;
   await apply({ ...s, ...importSettings($('importStr').value) });
+  if (s.lang !== wasLang) return location.reload(); // в строке был другой язык — перерисовать окно
   $('importStr').value = '';
   fillSettings();
-  toast(s.secret ? 'Настройки импортированы ✓' : 'Импортировано. Осталось вставить secret и сохранить');
+  toast(t(s.secret ? 'Настройки импортированы ✓' : 'Импортировано. Осталось вставить secret и сохранить'));
 }));
 
 $('shortcuts').onclick = () => chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
 
 const cmd = (await chrome.commands.getAll()).find((c) => c.name === 'toggle');
-$('hotkey').textContent = cmd?.shortcut || 'не задана';
+$('hotkey').textContent = cmd?.shortcut || t('не задана');
 
 renderUpdate();
 renderNews();

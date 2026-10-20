@@ -1,0 +1,11 @@
+{
+  "extName": {
+    "message": "Лазейка"
+  },
+  "extDesc": {
+    "message": "VPN в браузере через свои подписки (VLESS/VMess/Trojan/SS/Hysteria2) на локальном mihomo, с правилами по сайтам"
+  },
+  "toggle": {
+    "message": "Включить / выключить Лазейку"
+  }
+}
