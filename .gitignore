@@ -1,3 +1,5 @@
-# бинарник, конфиг с secret, кэш и подписки mihomo — только локально
+# бинарник, конфиг с secret, host.json, кэш и подписки mihomo — только локально
 core/*
 !core/mihomo.ps1
+!core/host.ps1
+!core/host.bat

@@ -1,11 +1,21 @@
 import {
   GROUP, AUTO, api, load, norm, parseList, parseSubs, buildRules, decide, isLan,
   pushConfig, ensureConfig, health, selectServer, testGroup, proxyState, applyProxy, toggle, updateBlocked,
-  exportSettings, importSettings,
+  exportSettings, importSettings, checkUpdate, newer, UPDATE_CMD,
 } from './lib.js';
 
 const $ = (id) => document.getElementById(id);
 const CORE_CMD = 'powershell -ExecutionPolicy Bypass -File "%LOCALAPPDATA%\\Lazeyka\\core\\mihomo.ps1"';
+const VERSION = chrome.runtime.getManifest().version;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// помощник (core/host.ps1) вызывается через service worker — он живёт, даже если popup закроют
+const host = (cmd) => chrome.runtime.sendMessage({ host: cmd });
+// Почему помощник недоступен — человеческими словами; null — помощник есть, ошибка другая.
+function hostProblem(e = '') {
+  if (/forbidden/i.test(e)) return 'Лазейка загружена не из папки установщика (%LOCALAPPDATA%\\Lazeyka\\extension), поэтому кнопка не работает. Загрузи расширение оттуда или выполни команду.';
+  if (/not found/i.test(e)) return 'Обновление в один клик заработает после этой версии — сейчас нужно один раз выполнить команду.';
+  return null;
+}
 const WHY = { list: 'твой список', blocked: 'заблокирован в РФ', ru: 'российский сайт', rest: 'остальные сайты', lan: 'локальная сеть' };
 
 let s = await load();
@@ -32,14 +42,14 @@ function toast(text, kind = '') {
 
 const ALERTS = {
   setup: ['Почти готово', 'Открой настройки: вставь secret из установщика и ссылку на подписку.', null, 'Открыть настройки'],
-  core: ['Ядро mihomo не запущено', 'Нажми Win+R, вставь команду ниже и Enter. Или перезагрузи компьютер — ядро стоит в автозагрузке.', CORE_CMD, 'Скопировать команду'],
+  core: ['Ядро mihomo не запущено', 'Нажми «Запустить ядро». Если не сработает — Win+R, вставь команду ниже и Enter.', CORE_CMD, 'Запустить ядро', 'Скопировать команду'],
   secret: ['Неверный secret', 'Скопируй его заново из %LOCALAPPDATA%\\Lazeyka\\core\\config.yaml (строка secret:).', null, 'Открыть настройки'],
   other: ['Прокси занят другим расширением', 'Отключи Browsec, ZeroOmega и подобные: прокси в браузере может держать только одно расширение.', null, 'Открыть расширения'],
   policy: ['Прокси заблокирован политикой', 'Администратор этого компьютера запретил расширениям менять прокси.', null, null],
 };
 const ALERT_ACTIONS = {
   setup: () => showSettings(),
-  core: () => navigator.clipboard.writeText(CORE_CMD).then(() => toast('Команда скопирована')),
+  core: startCore,
   secret: () => showSettings(),
   other: () => chrome.tabs.create({ url: 'chrome://extensions' }),
 };
@@ -57,8 +67,28 @@ function showAlert(kind) {
   $('alertCode').textContent = code ?? '';
   $('alertBtn').hidden = !btn;
   $('alertBtn').textContent = btn ?? '';
+  $('alertBtn2').hidden = !ALERTS[kind][4];
+  $('alertBtn2').textContent = ALERTS[kind][4] ?? '';
 }
-$('alertBtn').onclick = () => ALERT_ACTIONS[alertKind]?.();
+$('alertBtn').onclick = () => run(() => busy($('alertBtn'), async () => ALERT_ACTIONS[alertKind]?.()));
+$('alertBtn2').onclick = () => navigator.clipboard.writeText(CORE_CMD).then(() => toast('Команда скопирована: Win+R → вставить → Enter'));
+
+async function startCore() {
+  const r = await host('start');
+  if (!r?.ok) {
+    await navigator.clipboard.writeText(CORE_CMD).catch(() => {});
+    const why = /forbidden/i.test(r?.error) ? hostProblem(r.error)
+      : /not found/i.test(r?.error) ? 'Кнопка заработает после обновления через команду.' : `Не получилось: ${r?.error}.`;
+    throw new Error(`${why} Пока — Win+R, вставь (команда уже скопирована), Enter`);
+  }
+  toast('Запускаю ядро…');
+  for (let i = 0; i < 20; i++) {
+    await sleep(500);
+    try { await render(); } catch { continue; }
+    if (alertKind !== 'core') return toast('Ядро запущено ✓');
+  }
+  throw new Error('Ядро не ответило. Попробуй команду: Win+R, вставь, Enter');
+}
 
 // Все действия через run: понятные сообщения вместо исключений.
 async function run(fn) {
@@ -242,6 +272,51 @@ $('refresh').onclick = () => run(() => busy($('refresh'), async () => {
 
 $('search').oninput = renderServers;
 
+// --- обновления
+const fmtTime = (t) => new Date(t).toLocaleString('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+async function renderUpdate() {
+  const { update, dismissedVersion } = await chrome.storage.local.get(['update', 'dismissedVersion']);
+  const has = !!update && newer(update.latest, VERSION);
+  $('upd').hidden = !has || dismissedVersion === update.latest;
+  if (has) {
+    $('updTitle').textContent = `Доступна версия ${update.latest}`;
+    $('updNotes').replaceChildren(...update.notes.slice(0, 4).map((n) => Object.assign(document.createElement('li'), { textContent: n })));
+  }
+  $('verInfo').textContent = `Установлена ${VERSION}${update ? ` · проверено ${fmtTime(update.checkedAt)}` : ''}${has ? ` · есть ${update.latest}` : update ? ' · это последняя' : ''}`;
+}
+
+function showManualUpdate(err) {
+  $('upd').hidden = false;
+  $('updManual').hidden = false;
+  $('updCmd').textContent = UPDATE_CMD;
+  $('updErr').textContent = hostProblem(err) ?? `Не получилось обновить автоматически: ${err}`;
+}
+
+$('updBtn').onclick = () => run(() => busy($('updBtn'), async () => {
+  $('updBtn').textContent = 'Обновляю…';
+  try {
+    const r = await host('update');
+    if (r?.ok && r.same) toast('GitHub ещё отдаёт старую версию — попробуй через пару минут', 'err');
+    else if (r?.ok) toast(`Обновлено до ${r.version} — перезапускаюсь…`); // service worker сам перезагрузит расширение
+    else showManualUpdate(r?.error);
+  } finally {
+    $('updBtn').textContent = 'Обновить';
+  }
+}));
+$('updLater').onclick = async () => {
+  const { update } = await chrome.storage.local.get('update');
+  await chrome.storage.local.set({ dismissedVersion: update?.latest });
+  $('upd').hidden = true;
+};
+$('updCopy').onclick = () => navigator.clipboard.writeText(UPDATE_CMD).then(() => toast('Команда скопирована: Win+R → вставить → Enter'));
+$('updReload').onclick = () => chrome.runtime.reload();
+$('checkUpd').onclick = () => run(() => busy($('checkUpd'), async () => {
+  const u = await checkUpdate();
+  await chrome.storage.local.remove('dismissedVersion');
+  await renderUpdate();
+  if (newer(u.latest, VERSION)) { showMain(); toast(`Есть версия ${u.latest}`); } else toast('У тебя последняя версия ✓');
+}));
+
 // --- настройки
 function fillSettings() {
   rest = s.rest;
@@ -344,6 +419,6 @@ $('shortcuts').onclick = () => chrome.tabs.create({ url: 'chrome://extensions/sh
 
 const cmd = (await chrome.commands.getAll()).find((c) => c.name === 'toggle');
 $('hotkey').textContent = cmd?.shortcut || 'не задана';
-$('version').textContent = `Лазейка ${chrome.runtime.getManifest().version}`;
 
+renderUpdate();
 run(render);

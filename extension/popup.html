@@ -24,11 +24,23 @@
     <div id="sub" class="sub"></div>
   </div>
 
+  <section id="upd" class="card upd" hidden>
+    <b id="updTitle"></b>
+    <ul id="updNotes" class="upd-notes"></ul>
+    <div class="row-btns"><button id="updBtn" class="btn primary">Обновить</button><button id="updLater" class="btn ghost">Позже</button></div>
+    <div id="updManual" class="upd-manual" hidden>
+      <p id="updErr" class="hint"></p>
+      <p class="hint">Нажми Win+R, вставь команду и Enter — дальше обновления будут в один клик. Когда окно закроется, нажми «Перезапустить».</p>
+      <code id="updCmd" class="cmd"></code>
+      <div class="row-btns"><button id="updCopy" class="btn">Скопировать команду</button><button id="updReload" class="btn">Перезапустить</button></div>
+    </div>
+  </section>
+
   <div id="alert" class="alert" role="alert" hidden>
     <b id="alertTitle"></b>
     <p id="alertText"></p>
-    <code id="alertCode" hidden></code>
-    <button id="alertBtn" class="btn primary"></button>
+    <code id="alertCode" class="cmd" hidden></code>
+    <div class="row-btns"><button id="alertBtn" class="btn primary"></button><button id="alertBtn2" class="btn" hidden></button></div>
   </div>
 
   <section id="site" class="card" hidden>
@@ -108,7 +120,10 @@
       <h3>Горячая клавиша</h3>
       <div class="field-row"><span>Вкл/выкл: <kbd id="hotkey">не задана</kbd></span><button id="shortcuts" class="btn small">Изменить</button></div>
     </section>
-    <div class="version" id="version"></div>
+    <section class="card">
+      <h3>Обновления</h3>
+      <div class="field-row"><span id="verInfo" class="hint"></span><button id="checkUpd" class="btn small">Проверить</button></div>
+    </section>
   </div>
   <footer class="footer">
     <button id="back" class="btn ghost">Назад</button>

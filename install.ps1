@@ -27,5 +27,6 @@ Write-Host '  2. Включи «Режим разработчика» -> «За�
 Write-Host "     $dst\extension"
 Write-Host '  3. В расширении: Настройки -> вставь secret и ссылки на подписки -> Сохранить -> ВКЛ'
 Write-Host "     secret при первой установке уже в буфере обмена, он же лежит в $dst\core\config.yaml"
-Write-Host 'После обновления нажми «Обновить» на карточке расширения в chrome://extensions.'
+Write-Host 'Дальше обновления — кнопкой «Обновить» прямо в окне Лазейки.'
+Write-Host 'Если ставил поверх старой версии — нажми ⟳ на карточке Лазейки в chrome://extensions.'
 explorer.exe (Join-Path $dst 'extension')

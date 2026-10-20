@@ -229,6 +229,54 @@ export async function updateBlocked() {
   if ((await proxyState()).on) await applyProxy(await load());
 }
 
+// --- обновления: версия и заметки из main на GitHub, установка — через помощника (core/host.ps1)
+export const RAW = 'https://raw.githubusercontent.com/DUFUSxD/lazeyka/main';
+export const HOST = 'com.lazeyka.host';
+export const UPDATE_CMD = `powershell -c "irm ${RAW}/install.ps1 | iex"`;
+
+export function newer(a, b) {
+  const x = a.split('.').map(Number);
+  const y = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
+  return false;
+}
+
+// Пункты CHANGELOG.md из разделов «## X.Y.Z» новее установленной версии.
+export function changelogSince(md, current) {
+  const out = [];
+  let take = false;
+  for (const line of md.split(/\r?\n/)) {
+    const h = line.match(/^##\s+v?(\d+\.\d+\.\d+)/);
+    if (h) take = newer(h[1], current);
+    else if (take && /^\s*[-*]\s+/.test(line)) out.push(line.replace(/^\s*[-*]\s+/, '').replace(/\*\*/g, '').trim());
+  }
+  return out;
+}
+
+export async function checkUpdate() {
+  const get = (p) => fetch(`${RAW}/${p}`, { cache: 'no-store' });
+  const r = await get('extension/manifest.json');
+  if (!r.ok) throw new Error(`проверка обновлений: HTTP ${r.status}`);
+  const { version: latest } = await r.json();
+  const md = await get('CHANGELOG.md').then((x) => (x.ok ? x.text() : '')).catch(() => '');
+  const update = { latest, notes: changelogSince(md, chrome.runtime.getManifest().version), checkedAt: Date.now() };
+  await chrome.storage.local.set({ update });
+  return update;
+}
+
+// Вызов помощника. Порт держит service worker живым, пока помощник работает.
+export function hostCall(cmd) {
+  return new Promise((resolve, reject) => {
+    const port = chrome.runtime.connectNative(HOST);
+    let answered = false;
+    port.onMessage.addListener((m) => { answered = true; resolve(m); port.disconnect(); });
+    port.onDisconnect.addListener(() => {
+      if (!answered) reject(new Error(chrome.runtime.lastError?.message || 'Помощник завершился без ответа'));
+    });
+    port.postMessage({ cmd });
+  });
+}
+
 // --- перенос настроек одной строкой (без secret — он свой на каждом компьютере)
 const PORTABLE = ['subs', 'rest', 'ruDirect', 'useBlocked', 'webrtc', 'subViaVpn', 'vpnList', 'directList', 'siteServers'];
 const b64enc = (str) => {
