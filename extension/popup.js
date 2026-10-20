@@ -1,10 +1,12 @@
 import {
-  GROUP, AUTO, load, norm, parseList, parseSubs, plainName, buildRules, decide, isLan,
+  GROUP, AUTO, CONTROLLER, load, norm, parseList, parseSubs, plainName, subName, buildRules, decide, isLan,
   pushConfig, ensureConfig, health, selectServer, testGroup, proxyState, applyProxy, toggle, updateBlocked, refreshSubs, viaVpn,
-  exportSettings, importSettings, checkUpdate, newer, UPDATE_CMD, PING_OPTIONS, UPDATE_OPTIONS,
+  exportSettings, importSettings, checkUpdate, newer, UPDATE_CMD, PING_OPTIONS, UPDATE_OPTIONS, SORT_OPTIONS,
+  ensureHwid, subStatus, sortServers, speedTest, subOrigins,
 } from './lib.js';
 
 const $ = (id) => document.getElementById(id);
+const el = (tag, className = '', textContent = '') => Object.assign(document.createElement(tag), { className, textContent });
 const CORE_CMD = 'powershell -ExecutionPolicy Bypass -File "%LOCALAPPDATA%\\Lazeyka\\core\\mihomo.ps1"';
 const VERSION = chrome.runtime.getManifest().version;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -19,6 +21,7 @@ function hostProblem(e = '') {
 const WHY = { list: 'твой список', blocked: 'заблокирован в РФ', ru: 'российский сайт', rest: 'остальные сайты', lan: 'локальная сеть' };
 
 let s = await load();
+s.hwid ||= await ensureHwid(); // нужен в конфиге ядра, если popup открыли раньше, чем проснулся service worker
 let on = false;
 let h;                 // сводка health(); undefined — ещё не загрузили, null — ядро недоступно
 let rest = s.rest;     // черновик «Остальные сайты» в настройках
@@ -181,14 +184,31 @@ function renderServers() {
   $('count').textContent = String(h.all.length - 1);
   $('search').hidden = h.all.length <= 9;
   const match = (n) => !q || plainName(n).toLowerCase().includes(q);
+  // выбранный, текущий у ⚡ Авто и привязанные к сайтам не прячем, даже если не отвечают
+  const keep = new Set([h.now, h.autoNow, ...Object.values(s.siteServers)]);
+  let hidden = 0;
+  const visible = (n) => {
+    if (!s.hideDead || showDead || keep.has(n) || h.nodes.get(n)?.delay !== 0) return true;
+    hidden++;
+    return false;
+  };
   // ⚡ Авто сверху, дальше серверы группами по подпискам: шапка с логотипом, названием, трафиком и сроком.
   // Подписка, которая не скачалась, тоже видна — с причиной, иначе непонятно, куда она делась.
-  $('list').replaceChildren(...(h.empty ? [] : [nodeItem(AUTO)]), ...h.subs.flatMap((sub) => {
+  const items = [...(h.empty ? [] : [nodeItem(AUTO)]), ...h.subs.flatMap((sub) => {
     if (!sub.servers.length) return q ? [] : subHeader(sub);
-    const servers = sub.servers.filter(match);
-    return servers.length ? [...subHeader(sub), ...servers.map(nodeItem)] : [];
-  }));
+    const servers = sortServers(sub.servers, s.sortServers, h.nodes).filter(match).filter(visible);
+    return servers.length || !q ? [...subHeader(sub), ...servers.map(nodeItem)] : [];
+  })];
+  if (hidden) {
+    const b = el('button', 'btn small', `Скрыто неработающих: ${hidden} — показать`);
+    b.onclick = () => { showDead = true; renderServers(); };
+    const li = el('li', 'more');
+    li.append(b);
+    items.push(li);
+  }
+  $('list').replaceChildren(...items);
 }
+let showDead = false; // «показать» скрытые неработающие — до закрытия окна
 
 const subErrors = new Map(); // ссылка → { kind, text }: почему подписка не скачалась
 const triedSubs = new Set(); // пустые подписки, которые уже пробовали починить в этом открытии окна
@@ -229,40 +249,59 @@ function nodeItem(n) {
   b.append(name, delay);
   b.title = isAuto ? 'Сам выбирает самый быстрый живой сервер и переключается, если текущий упал' : plainName(n);
   b.onclick = () => run(async () => { await selectServer(n, s.secret); await refreshHealth(); });
-  const li = document.createElement('li');
+  const li = el('li', 'node-row');
   li.append(b);
+  if (!isAuto) li.append(speedButton(n));
   return li;
 }
 
-// Трафик и срок из заголовка Subscription-Userinfo (его отдают 3x-ui, Marzban, Remnawave и многие провайдеры).
-function subInfo(i) {
-  if (!i) return ['', false];
-  const GB = 1024 ** 3;
-  const gb = (b) => (b / GB).toFixed(b < 10 * GB ? 1 : 0);
-  const used = (i.Upload || 0) + (i.Download || 0);
-  const parts = [];
-  let warn = false;
-  if (i.Total) { parts.push(`${gb(used)} из ${gb(i.Total)} ГБ`); warn = used / i.Total > 0.9; } else if (used) parts.push(`${gb(used)} ГБ`);
-  if (i.Expire) {
-    const days = (i.Expire * 1000 - Date.now()) / 864e5;
-    parts.push(days < 0 ? 'истекла' : `до ${new Date(i.Expire * 1000).toLocaleDateString('ru', { day: 'numeric', month: 'short' })}`);
-    warn ||= days < 3;
-  }
-  return [parts.join(' · '), warn];
+// Тест скорости любого сервера, не переключаясь на него. Результаты живут до закрытия окна.
+const speeds = new Map(); // сервер → Мбит/с
+let speedNow = null;      // сервер, который меряем сейчас
+const mbit = (v) => `${v < 10 ? v.toFixed(1) : Math.round(v)} Мбит/с`;
+function speedButton(n) {
+  const v = speeds.get(n);
+  const b = el('button', `spd${v !== undefined ? ' has' : ''}${speedNow === n ? ' busy' : ''}`, speedNow === n ? '…' : v === undefined ? '⇣' : mbit(v));
+  b.title = 'Тест скорости: скачать до 25 МБ через этот сервер (расходует трафик подписки)';
+  b.setAttribute('aria-label', `Тест скорости: ${plainName(n)}`);
+  b.disabled = !!speedNow;
+  b.onclick = () => run(async () => {
+    if (!on) throw new Error('Включи Лазейку — тест скорости идёт через неё');
+    speedNow = n;
+    renderServers();
+    try { speeds.set(n, await speedTest(n, s)); } finally { speedNow = null; renderServers(); }
+  });
+  return b;
 }
 
+// Шапка подписки в две строки: название; под ним трафик и срок (из Subscription-Userinfo), «через VPN» и ссылки провайдера.
+const GB = 1024 ** 3;
+const gb = (b) => (b / GB).toFixed(b < 10 * GB ? 1 : 0);
 function subHeader(sub) {
-  const li = document.createElement('li');
-  li.className = 'sub-head';
-  const name = document.createElement('span');
-  name.className = 'sub-name';
-  name.textContent = sub.name;
-  name.title = sub.url ?? '';
-  const [text, warn] = subInfo(sub.info);
-  const info = document.createElement('span');
-  info.className = `sub-info${warn ? ' warn' : ''}`;
-  info.textContent = sub.url && viaVpn(s, sub.url) ? [text, 'через VPN'].filter(Boolean).join(' · ') : text;
-  li.append(subIcon(sub), name, info);
+  const st = subStatus(sub.info);
+  const parts = [];
+  if (st?.total) parts.push(`${gb(st.used)} из ${gb(st.total)} ГБ`); else if (st?.used) parts.push(`${gb(st.used)} ГБ`);
+  if (st?.expireMs) parts.push(st.expired ? 'истекла' : `до ${new Date(st.expireMs).toLocaleDateString('ru', { day: 'numeric', month: 'long' })}`);
+  if (sub.url && viaVpn(s, sub.url)) parts.push('через VPN');
+  const meta = (sub.url && s.subMeta[sub.url]) || {};
+  const links = [['support', 'Поддержка'], ['web', 'Кабинет']].filter(([k]) => /^https?:\/\//.test(meta[k] ?? '')).map(([k, text]) => {
+    const a = Object.assign(el('a', 'sub-link', text), { href: meta[k], target: '_blank', rel: 'noopener noreferrer' });
+    a.title = new URL(meta[k]).host;
+    return a;
+  });
+  const lines = el('div', 'sub-lines');
+  const name = el('span', 'sub-name', sub.name);
+  name.title = sub.name;
+  lines.append(name);
+  if (parts.length || links.length) {
+    const second = el('div', 'sub-second');
+    const warn = st && (st.expired || st.expiresSoon || st.trafficLow);
+    if (parts.length) second.append(el('span', `sub-info${warn ? ' warn' : ''}`, parts.join(' · ')));
+    second.append(...links);
+    lines.append(second);
+  }
+  const li = el('li', 'sub-head');
+  li.append(subIcon(sub), lines);
   if (sub.servers.length) return [li];
 
   // пустая подписка: почему и что можно сделать
@@ -339,12 +378,77 @@ async function render() {
   const st = await proxyState();
   on = st.on;
   renderPower(); renderSite();
+  if (!on) stopTraffic();
   if (st.levelOfControl === 'controlled_by_other_extensions') return showAlert('other');
   if (st.levelOfControl === 'not_controllable') return showAlert('policy');
   if (!s.secret || !s.subs.length) { renderServers(); return showAlert('setup'); }
   await ensureConfig(s);
   showAlert(null);
   await refreshHealth();
+  if (on) startTraffic();
+}
+
+// Скорость и объём через VPN: mihomo раз в секунду шлёт строку JSON в /traffic. Сайты «напрямую» сюда не попадают.
+let traffic = null;
+const size = (b) => (b < 1024 ** 2 ? `${Math.round(b / 1024)} КБ` : b < GB ? `${(b / 1024 ** 2).toFixed(1)} МБ` : `${(b / GB).toFixed(2)} ГБ`);
+async function startTraffic() {
+  if (traffic) return;
+  const ctrl = traffic = new AbortController();
+  try {
+    const r = await fetch(`http://${CONTROLLER}/traffic`, { headers: { Authorization: `Bearer ${s.secret}` }, signal: ctrl.signal });
+    const reader = r.body.pipeThrough(new TextDecoderStream()).getReader();
+    let buf = '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const lines = (buf + value).split('\n');
+      buf = lines.pop();
+      const last = lines.filter(Boolean).at(-1);
+      if (!last) continue;
+      const t = JSON.parse(last);
+      const total = t.upTotal + t.downTotal;
+      $('rate').textContent = `↓ ${size(t.down)}/с  ↑ ${size(t.up)}/с${total >= 0 ? ` · всего ${size(total)}` : ''}`;
+    }
+  } catch { /* выключили, закрыли окно или ядро упало */ }
+  if (traffic === ctrl) stopTraffic();
+}
+function stopTraffic() {
+  traffic?.abort();
+  traffic = null;
+  $('rate').textContent = '';
+}
+
+// Сообщение провайдера (заголовок announce) — пока его не закроют; новое сообщение покажется снова.
+async function renderNews() {
+  const { newsSeen = [] } = await chrome.storage.local.get('newsSeen');
+  const key = (u) => `${new URL(u).host}|${s.subMeta[u].announce}`;
+  const url = s.subs.find((u) => s.subMeta[u]?.announce && !newsSeen.includes(key(u)));
+  $('news').hidden = !url;
+  if (!url) return;
+  $('newsTitle').textContent = `Сообщение от «${subName(s, url)}»`;
+  $('newsText').textContent = s.subMeta[url].announce;
+  $('newsClose').onclick = async () => {
+    await chrome.storage.local.set({ newsSeen: [...newsSeen, key(url)].slice(-20) });
+    renderNews();
+  };
+}
+
+// Данные провайдера качает service worker (он живёт, даже если окно закроется); потом перерисовать то, что от них зависит.
+async function pullMeta() {
+  const r = await chrome.runtime.sendMessage({ meta: true });
+  if (!r?.ok) return;
+  s = { ...s, ...(await chrome.storage.local.get(['subMeta', 'subs', 'subNames', 'subsViaVpn'])) }; // мог переехать адрес подписки
+  renderNews();
+  if (h) await refreshHealth();
+}
+
+// Проверить серверы при открытии окна — не чаще раза в минуту, даже если окно открывают часто.
+async function pingOnOpen() {
+  if (!s.pingOnOpen || !h || h.empty) return;
+  const { lastPing = 0 } = await chrome.storage.session.get('lastPing');
+  if (Date.now() - lastPing < 60e3) return;
+  await chrome.storage.session.set({ lastPing: Date.now() });
+  $('ping').click();
 }
 
 $('power').onclick = () => run(() => busy($('power'), async () => { on = await toggle(); await render(); }));
@@ -445,7 +549,7 @@ $('checkUpd').onclick = () => run(() => busy($('checkUpd'), async () => {
 }));
 
 // --- настройки
-for (const [id, opts] of [['pingInterval', PING_OPTIONS], ['updateEvery', UPDATE_OPTIONS]]) {
+for (const [id, opts] of [['pingInterval', PING_OPTIONS], ['updateEvery', UPDATE_OPTIONS], ['sortServers', SORT_OPTIONS]]) {
   $(id).replaceChildren(...opts.map(([v, t]) => new Option(t, v)));
 }
 
@@ -453,9 +557,9 @@ function fillSettings() {
   rest = s.rest;
   bindings = { ...s.siteServers };
   for (const b of document.querySelectorAll('#restSeg button')) b.setAttribute('aria-checked', String(b.dataset.v === rest));
-  for (const k of ['ruDirect', 'useBlocked', 'webrtc', 'subViaVpn']) $(k).checked = s[k];
-  $('pingInterval').value = s.pingInterval;
-  $('updateEvery').value = s.updateEvery;
+  for (const k of ['ruDirect', 'useBlocked', 'webrtc', 'subViaVpn', 'hideDead', 'pingOnOpen']) $(k).checked = s[k];
+  for (const k of ['pingInterval', 'updateEvery', 'sortServers']) $(k).value = s[k];
+  renderMetaHint();
   for (const k of ['vpnList', 'directList']) $(k).value = s[k].join('\n');
   $('subs').value = s.subs.map((u) => (s.subNames[u] ? `${s.subNames[u]} ${u}` : u)).join('\n');
   $('secret').value = s.secret;
@@ -507,11 +611,35 @@ $('back').onclick = showMain;
 
 $('showSecret').onclick = () => { $('secret').type = $('secret').type === 'password' ? 'text' : 'password'; };
 
+// Название, поддержка и сообщения провайдера: нужно разрешение на сайт панели (просим только по кнопке).
+async function renderMetaHint() {
+  const origins = subOrigins(s.subs);
+  const ok = origins.length > 0 && await chrome.permissions.contains({ origins });
+  $('metaGrant').hidden = !origins.length || ok;
+  $('metaHint').textContent = !origins.length ? ''
+    : ok ? 'Название, поддержка и сообщения провайдера подтягиваются сами ✓'
+      : 'Лазейка может подтянуть от провайдера название, ссылку на поддержку и его сообщения. Браузер спросит разрешение на сайт панели.';
+}
+$('metaGrant').onclick = () => {
+  let subs = s.subs;
+  try { subs = parseSubs($('subs').value).map((x) => x.url); } catch { /* в поле ошибка — берём сохранённые */ }
+  // request — первым делом в обработчике клика, иначе браузер не покажет запрос
+  chrome.permissions.request({ origins: subOrigins(subs) }).then((ok) => run(async () => {
+    await renderMetaHint();
+    if (!ok) return toast('Без разрешения название и ссылки провайдера не подтянутся', 'err');
+    toast('Загружаю данные провайдера…');
+    await pullMeta();
+    await renderMetaHint();
+    toast('Готово ✓');
+  }));
+};
+
 // Сохранить новые настройки: mihomo перезаливаем, только если поменялось то, что он видит.
 async function apply(next) {
   const mihomoKey = (x) => JSON.stringify([x.subs, x.secret, x.subViaVpn, x.siteServers, x.pingInterval]);
   const push = next.secret && next.subs.length && mihomoKey(next) !== mihomoKey(s);
-  const { blocked, blockedAt, ...settings } = next; // список itdoginfo не трогаем
+  // список itdoginfo и то, что пишет service worker (данные провайдера, уведомления), не трогаем — у popup они могли устареть
+  const { blocked, blockedAt, subMeta, alerted, hwid, ...settings } = next;
   await chrome.storage.local.set(settings);
   s = next;
   if (on) await applyProxy(s);
@@ -532,6 +660,9 @@ $('save').onclick = () => run(() => busy($('save'), async () => {
     subViaVpn: $('subViaVpn').checked,
     pingInterval: Number($('pingInterval').value),
     updateEvery: Number($('updateEvery').value),
+    sortServers: $('sortServers').value,
+    hideDead: $('hideDead').checked,
+    pingOnOpen: $('pingOnOpen').checked,
     vpnList: parseList($('vpnList').value),
     directList: parseList($('directList').value),
     siteServers: bindings,
@@ -539,6 +670,7 @@ $('save').onclick = () => run(() => busy($('save'), async () => {
   showMain();
   toast('Сохранено ✓');
   await render();
+  run(pullMeta); // новая подписка — сразу её название и ссылки (если разрешение уже есть)
 }));
 
 $('export').onclick = () => run(async () => {
@@ -559,4 +691,5 @@ const cmd = (await chrome.commands.getAll()).find((c) => c.name === 'toggle');
 $('hotkey').textContent = cmd?.shortcut || 'не задана';
 
 renderUpdate();
-run(render);
+renderNews();
+run(render).then(() => run(pingOnOpen));

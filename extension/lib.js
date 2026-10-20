@@ -6,6 +6,9 @@ export const AUTO = 'AUTO';
 // Cloudflare, а не gstatic: Google в РФ замедляют, и сервера-мосты с выходом в РФ ложно выглядели бы мёртвыми
 export const TEST_URL = 'https://cp.cloudflare.com/generate_204';
 export const BLOCKED_URL = 'https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Russia/inside-raw.lst';
+// Тест скорости: файл с Cloudflare через группу SPEED — так можно проверить любой сервер, не меняя тот, через который ходишь
+export const SPEED_HOST = 'speed.cloudflare.com';
+export const SPEED = 'SPEED';
 const API = `http://${CONTROLLER}`;
 
 export const DEFAULTS = {
@@ -21,13 +24,32 @@ export const DEFAULTS = {
   updateEvery: 360,   // проверка обновлений, минуты; 0 — только вручную
   vpnList: [], directList: [],
   siteServers: {},    // домен → имя сервера (или AUTO)
+  sortServers: 'sub', // порядок серверов в группе: как в подписке / по пингу / по имени
+  hideDead: false,    // прятать серверы, которые не ответили на проверку
+  pingOnOpen: false,  // проверять серверы при открытии окна
+  hwid: '',           // случайный идентификатор этого компьютера для панелей с лимитом устройств (не переносится)
+  subMeta: {},        // ссылка → данные из служебных заголовков подписки (название, поддержка, объявление…)
+  alerted: [],        // о чём уже уведомили: «ссылка|что|срок» — чтобы не повторять
   blocked: [], blockedAt: 0,
 };
 export const load = () => chrome.storage.local.get(DEFAULTS);
 
-// Допустимые значения частоты проверок (они же — пункты выпадающих списков в настройках).
+// Допустимые значения настроек со списком (они же — пункты выпадающих списков).
 export const PING_OPTIONS = [[60, 'каждую минуту'], [300, 'каждые 5 минут'], [900, 'каждые 15 минут'], [1800, 'каждые 30 минут'], [3600, 'раз в час']];
 export const UPDATE_OPTIONS = [[60, 'каждый час'], [360, 'каждые 6 часов'], [1440, 'раз в день'], [10080, 'раз в неделю'], [0, 'только вручную']];
+export const SORT_OPTIONS = [['sub', 'как в подписке'], ['ping', 'по пингу'], ['name', 'по названию']];
+
+// Панели с лимитом устройств (Remnawave и др.) без x-hwid отвечают 404. Значения — только ASCII.
+export const deviceHeaders = (hwid) => ({ 'x-hwid': hwid, 'x-device-os': 'Windows', 'x-device-model': 'Lazeyka' });
+
+// Один идентификатор на компьютер: создаётся при первой нужде и дальше не меняется.
+export async function ensureHwid() {
+  const { hwid } = await chrome.storage.local.get('hwid');
+  if (hwid) return hwid;
+  const id = crypto.randomUUID().replaceAll('-', ''); // 32 символа [0-9a-f] — подходит под 10–64 [A-Za-z0-9=-]
+  await chrome.storage.local.set({ hwid: id });
+  return id;
+}
 
 // Российские зоны и сервисы на иностранных доменах: банки/госуслуги/маркетплейсы часто режут зарубежные IP.
 export const RU = ['ru', 'su', 'xn--p1ai', 'moscow', 'xn--80adxhks', 'tatar',
@@ -60,15 +82,38 @@ export function parseSubs(text) {
   return out;
 }
 
-// Имя подписки: своё или домен панели.
-export const subName = (s, url) => s.subNames[url] || new URL(url).hostname;
+// Имя подписки: своё, от провайдера (profile-title) или домен панели.
+export const subName = (s, url) => s.subNames[url] || s.subMeta?.[url]?.title || new URL(url).hostname;
 // При нескольких подписках mihomo добавляет к именам серверов префикс «1| » — людям он не нужен.
 export const plainName = (n) => n.replace(/^\d+\| /, '');
 
+// Состояние подписки по Subscription-Userinfo — общие пороги для шапки и уведомлений.
+// expire бывает и в миллисекундах (больше 32e9), total = 0 — безлимит.
+export function subStatus(i, now = Date.now()) {
+  if (!i) return null;
+  const used = (i.Upload || 0) + (i.Download || 0);
+  const expireMs = !i.Expire ? 0 : i.Expire > 32e9 ? i.Expire : i.Expire * 1000;
+  const daysLeft = expireMs ? (expireMs - now) / 864e5 : Infinity;
+  return {
+    used, total: i.Total || 0, expireMs, daysLeft,
+    expired: daysLeft < 0,
+    expiresSoon: daysLeft >= 0 && daysLeft < 3,
+    trafficLow: !!i.Total && used / i.Total >= 0.9,
+  };
+}
+
+// Порядок серверов внутри подписки. По пингу: живые по задержке, потом непроверенные, потом мёртвые.
+export function sortServers(names, mode, nodes) {
+  if (mode === 'name') return [...names].sort((a, b) => plainName(a).localeCompare(plainName(b), 'ru', { numeric: true }));
+  if (mode !== 'ping') return names;
+  const key = (n) => { const d = nodes.get(n)?.delay; return d > 0 ? d : d === 0 ? 2e9 : 1e9; };
+  return [...names].sort((a, b) => key(a) - key(b));
+}
+
 const toSet = (list, v = 1) => Object.fromEntries(list.map((d) => [d, v]));
 export const buildRules = (s) => ({
-  // сайт с выбранным сервером всегда идёт через VPN
-  user: { ...toSet(s.directList, 'direct'), ...toSet(s.vpnList, 'vpn'), ...toSet(Object.keys(s.siteServers), 'vpn') },
+  // сайт с выбранным сервером всегда идёт через VPN; файл теста скорости — тоже (иначе меряли бы свой интернет)
+  user: { ...toSet(s.directList, 'direct'), ...toSet(s.vpnList, 'vpn'), ...toSet(Object.keys(s.siteServers), 'vpn'), [SPEED_HOST]: 'vpn' },
   blocked: s.useBlocked ? toSet(s.blocked) : {},
   ru: s.ruDirect ? toSet(RU) : {},
   vpn: s.rest === 'vpn',
@@ -134,18 +179,20 @@ export function buildConfig(s) {
     'proxy-providers': Object.fromEntries(s.subs.map((url, i) => [names[i], {
       // без явного proxy mihomo качает подписку через правила, т.е. через REJECT, и она не грузится никогда;
       // через VPN — через ⚡ Авто, а не выбранный вручную сервер: тот может оказаться мёртвым
-      type: 'http', url, interval: 3600, proxy: viaVpn(s, url) ? AUTO : 'DIRECT',
+      type: 'http', url, interval: subInterval(s, url), proxy: viaVpn(s, url) ? AUTO : 'DIRECT',
       // префикс, чтобы одноимённые сервера из разных подписок не склеились
       ...(s.subs.length > 1 && { override: { 'additional-prefix': `${i + 1}| ` } }),
+      ...(s.hwid && { header: Object.fromEntries(Object.entries(deviceHeaders(s.hwid)).map(([k, v]) => [k, [v]])) }),
     }])),
     // REJECT первым: если подписка не скачалась или все сервера мертвы — блок, а не трафик напрямую
     'proxy-groups': [
       { name: GROUP, type: 'select', proxies: ['REJECT', AUTO], use: names },
       // lazy: false — проверять серверы всегда, иначе нечем показывать задержки и ловить «все умерли»
       { name: AUTO, type: 'url-test', proxies: ['REJECT'], use: names, url: TEST_URL, interval: s.pingInterval, tolerance: 50, lazy: false },
+      { name: SPEED, type: 'select', proxies: ['REJECT'], use: names },
       ...groups.map((_, i) => ({ name: `SITE${i}`, type: 'select', proxies: ['REJECT'], use: names })),
     ],
-    rules: [...siteRules, `MATCH,${GROUP}`],
+    rules: [`DOMAIN-SUFFIX,${SPEED_HOST},${SPEED}`, ...siteRules, `MATCH,${GROUP}`],
   };
 }
 
@@ -183,6 +230,31 @@ export async function settleAuto(secret) {
 }
 
 export const viaVpn = (s, url) => s.subViaVpn || s.subsViaVpn.includes(url);
+// Как часто mihomo перекачивает подписку: как просит провайдер (profile-update-interval), иначе раз в час.
+export const subInterval = (s, url) => (s.subMeta?.[url]?.updateHours || 1) * 3600;
+
+// Скорость сервера в Мбит/с: файл с Cloudflare через группу SPEED. Ограничен 25 МБ и 8 секундами — расходует трафик подписки.
+// Работает только при включённой Лазейке: запрос браузера идёт через PAC → mihomo → SPEED → этот сервер.
+export async function speedTest(name, s, { bytes = 25e6, maxMs = 8000 } = {}) {
+  // конфиг до 1.4 без группы SPEED — перезалить и повторить
+  await select(SPEED, name, s.secret).catch(async () => { await pushConfig(s); await select(SPEED, name, s.secret); });
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), maxMs);
+  const t0 = performance.now();
+  let got = 0;
+  try {
+    const r = await fetch(`https://${SPEED_HOST}/__down?bytes=${bytes}`, { cache: 'no-store', signal: ctrl.signal });
+    if (!r.ok) throw new Error(`тест скорости: HTTP ${r.status}`);
+    const reader = r.body.getReader();
+    for (;;) { const { done, value } = await reader.read(); if (done) break; got += value.length; }
+  } catch (e) {
+    if (e.name !== 'AbortError') throw new Error('Сервер не смог скачать тестовый файл — возможно, он не работает');
+  } finally {
+    clearTimeout(timer);
+  }
+  if (got < 1e5) throw new Error('Сервер почти ничего не скачал за 8 секунд — возможно, он не работает');
+  return (got * 8) / ((performance.now() - t0) / 1000) / 1e6;
+}
 
 // Почему подписка не скачалась — человеческими словами. Только адрес сайта: путь ссылки — это личный токен.
 export function subError(e, url) {
@@ -192,7 +264,9 @@ export function subError(e, url) {
   let m = raw;
   try { m = JSON.parse(raw.replace(/^mihomo \d+: /, '')).message ?? raw; } catch { /* не JSON — как есть */ }
   const code = m.match(/^(\d{3}) /)?.[1];
-  if (code === '404' || code === '410') return { kind: 'notfound', text: `${host} ответил «не найдено» (${code}): ссылка устарела или подписка удалена` };
+  if (code === '404' || code === '410') {
+    return { kind: 'notfound', text: `${host} ответил «не найдено» (${code}): ссылка устарела, подписка удалена или у провайдера кончился лимит устройств` };
+  }
   if (['401', '403', '451'].includes(code)) return { kind: 'denied', text: `${host} отказал в доступе (${code}) — возможно, не пускает из этой сети или страны` };
   if (/x509|certificate/i.test(m)) return { kind: 'cert', text: `У сайта ${host} проблема с сертификатом` };
   if (/EOF|reset|timeout|deadline|refused|no such host|handshake|unreachable|forcibly/i.test(m)) {
@@ -355,8 +429,95 @@ export function hostCall(cmd) {
   });
 }
 
+// --- данные от провайдера: служебные заголовки подписки (их понимают Happ, Incy; отдают Remnawave, 3x-ui и др.)
+// mihomo их наружу не отдаёт, поэтому расширение заглядывает в подписку само — с разрешения на сайт панели.
+
+// «base64:…» или похожее на base64 — раскодировать, если получился нормальный текст; иначе оставить как есть.
+export function decodeText(v) {
+  if (!v) return '';
+  let b64 = null;
+  if (/^base64:/i.test(v)) b64 = v.slice(7);
+  else if (v.length >= 8 && v.length % 4 === 0 && /^[A-Za-z0-9+/]+={0,2}$/.test(v)) b64 = v;
+  if (b64 !== null) {
+    try {
+      const t = new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));
+      if (!/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(t)) return t.replace(/\r\n?/g, '\n').trim(); // \t \n \r — можно
+    } catch { /* не base64 или не UTF-8 */ }
+    if (/^base64:/i.test(v)) return '';
+  }
+  return v.trim();
+}
+
+const httpUrl = (v) => { try { const u = new URL(v); return /^https?:$/.test(u.protocol) ? u.href : ''; } catch { return ''; } };
+
+// Заголовки ответа подписки → то, что покажем. Всё от провайдера считаем недоверенным: только текст и http(s)-ссылки.
+export function parseSubMeta(h, url) {
+  const get = (n) => h.get(n) ?? '';
+  const meta = {
+    title: decodeText(get('profile-title') || get('subscription-name')).split('\n')[0].trim().slice(0, 40),
+    support: httpUrl(get('support-url')),
+    web: httpUrl(get('profile-web-page-url') || get('homepage')),
+    announce: decodeText(get('announce')).slice(0, 200),
+    updateHours: 0,
+    newUrl: '',
+  };
+  const hours = Number(get('profile-update-interval'));
+  if (Number.isInteger(hours) && hours >= 1 && hours <= 168) meta.updateHours = hours;
+  // переезд подписки — только https → https
+  if (url.startsWith('https://')) {
+    const nu = get('new-url');
+    const nd = get('new-domain').trim().toLowerCase();
+    if (/^https:\/\/\S+$/i.test(nu) && httpUrl(nu)) meta.newUrl = httpUrl(nu);
+    else if (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(nd)) { const u = new URL(url); u.hostname = nd; meta.newUrl = u.href; }
+    if (meta.newUrl === url) meta.newUrl = '';
+  }
+  return meta;
+}
+
+// Подписка переехала: заменить ссылку во всех настройках, где она ключ или значение.
+export function migrateSub(s, from, to) {
+  const re = (u) => (u === from ? to : u);
+  const reKeys = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [re(k), v]));
+  return { subs: s.subs.map(re), subNames: reKeys(s.subNames), subsViaVpn: s.subsViaVpn.map(re), subMeta: reKeys(s.subMeta) };
+}
+
+const originOf = (url) => `${new URL(url).origin}/*`;
+export const subOrigins = (subs) => [...new Set(subs.map(originOf))];
+
+// Свои запросы расширения к панелям — с тем же User-Agent, что у mihomo, иначе панель отдаст HTML-страницу вместо
+// подписки. Правило только для запросов вне вкладок (tabId -1): открытая во вкладке панель выглядит как обычно.
+async function syncUaRule(subs, ua) {
+  const old = await chrome.declarativeNetRequest.getSessionRules();
+  await chrome.declarativeNetRequest.updateSessionRules({
+    removeRuleIds: old.map((r) => r.id),
+    addRules: [...new Set(subs.map((u) => new URL(u).origin))].map((o, i) => ({
+      id: i + 1,
+      priority: 1,
+      action: { type: 'modifyHeaders', requestHeaders: [{ header: 'user-agent', operation: 'set', value: ua }] },
+      condition: { urlFilter: `|${o}/`, tabIds: [chrome.tabs.TAB_ID_NONE], resourceTypes: ['xmlhttprequest', 'other'] },
+    })),
+  });
+}
+
+// Данные от провайдера по всем подпискам, на сайты которых есть разрешение. Не вышло — остаются прежние.
+export async function refreshMeta(s) {
+  const out = { ...s.subMeta };
+  const version = (await api('/version', s.secret).catch(() => null))?.version ?? 'v1.19.32';
+  await syncUaRule(s.subs, `clash.meta/${version}`);
+  for (const url of s.subs) {
+    if (!(await chrome.permissions.contains({ origins: [originOf(url)] }))) continue;
+    try {
+      const r = await fetch(url, { cache: 'no-store', credentials: 'omit', headers: deviceHeaders(s.hwid) });
+      r.body?.cancel();
+      if (r.ok) out[url] = { ...parseSubMeta(r.headers, url), fetchedAt: Date.now() };
+    } catch { /* панель недоступна — оставим старое */ }
+  }
+  return out;
+}
+
 // --- перенос настроек одной строкой (без secret — он свой на каждом компьютере)
-const PORTABLE = ['subs', 'subNames', 'rest', 'ruDirect', 'useBlocked', 'webrtc', 'subViaVpn', 'vpnList', 'directList', 'siteServers', 'pingInterval', 'updateEvery'];
+const PORTABLE = ['subs', 'subNames', 'rest', 'ruDirect', 'useBlocked', 'webrtc', 'subViaVpn', 'vpnList', 'directList', 'siteServers',
+  'pingInterval', 'updateEvery', 'sortServers', 'hideDead', 'pingOnOpen'];
 const b64enc = (str) => {
   let bin = '';
   for (const b of new TextEncoder().encode(str)) bin += String.fromCharCode(b);
@@ -383,7 +544,8 @@ export function importSettings(str) {
       .map(([u, n]) => [u, n.trim().slice(0, 40)]));
   }
   if (o.rest === 'vpn' || o.rest === 'direct') out.rest = o.rest;
-  for (const k of ['ruDirect', 'useBlocked', 'webrtc', 'subViaVpn']) if (typeof o[k] === 'boolean') out[k] = o[k];
+  for (const k of ['ruDirect', 'useBlocked', 'webrtc', 'subViaVpn', 'hideDead', 'pingOnOpen']) if (typeof o[k] === 'boolean') out[k] = o[k];
+  if (SORT_OPTIONS.some(([v]) => v === o.sortServers)) out.sortServers = o.sortServers;
   if (PING_OPTIONS.some(([v]) => v === o.pingInterval)) out.pingInterval = o.pingInterval;
   if (UPDATE_OPTIONS.some(([v]) => v === o.updateEvery)) out.updateEvery = o.updateEvery;
   for (const k of ['vpnList', 'directList']) if (strings(o[k])) out[k] = parseList(o[k].join('\n'));

@@ -9,7 +9,7 @@ import { writeFileSync, readFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { api, ensureConfig, pushConfig, health, selectServer, testGroup, refreshSubs, subError, DEFAULTS, GROUP, AUTO } from './extension/lib.js';
+import { api, ensureConfig, pushConfig, health, selectServer, testGroup, refreshSubs, subError, DEFAULTS, GROUP, AUTO, SPEED, SPEED_HOST } from './extension/lib.js';
 
 const exe = process.argv[2];
 if (!exe) throw new Error('usage: node e2e.mjs <mihomo.exe>');
@@ -33,7 +33,7 @@ function fakeServer(name, port) {
       const [, host, p] = target;
       seen[name].push(`${host}:${p}`);
       sock.write('HTTP/1.1 200 Connection established\r\n\r\n');
-      if (host.endsWith('.lzk')) {
+      if (host.endsWith('.lzk') || host === SPEED_HOST) {
         sock.once('data', () => sock.end(`HTTP/1.1 200 OK\r\nContent-Length: ${4 + name.length}\r\nConnection: close\r\n\r\nvia:${name}`));
         sock.resume();
         return;
@@ -57,10 +57,12 @@ const b64 = Buffer.from([ // формат 3x-ui: base64 со ссылками; �
   `ss://${Buffer.from('aes-128-gcm:pass').toString('base64')}@127.0.0.1:3#FI-3`,
 ].join('\n')).toString('base64');
 let hits = 0;
+const hwids = new Set(); // какие x-hwid пришли на сервер подписок
 // /yaml отдаёт ещё и трафик со сроком, как 3x-ui / Marzban / Remnawave
 const USERINFO = 'upload=1073741824; download=2147483648; total=10737418240; expire=1893456000';
 const subSrv = http.createServer((req, res) => {
   hits++;
+  hwids.add(req.headers['x-hwid']);
   if (req.url === '/yaml') res.setHeader('subscription-userinfo', USERINFO);
   if (req.url === '/blocked') return res.end('proxies:\n  - {name: D, type: http, server: 127.0.0.1, port: 18892}\n');
   res.end(req.url === '/yaml' ? yaml : b64);
@@ -94,6 +96,7 @@ const s = {
   subs: ['http://127.0.0.1:18888/yaml', 'http://127.0.0.1:18888/b64'],
   siteServers: { 'b.lzk': '1| B', 'gone.lzk': '1| ZZZ', 'auto.lzk': AUTO },
   subNames: { 'http://127.0.0.1:18888/yaml': 'Мой VPN' },
+  hwid: randomBytes(16).toString('hex'),
 };
 let p = start();
 try {
@@ -118,6 +121,7 @@ try {
   ]);
   assert.deepEqual(h.subs[0].info, { Upload: 1073741824, Download: 2147483648, Total: 10737418240, Expire: 1893456000 }, JSON.stringify(h.subs[0].info));
   assert.equal(h.subs[1].info, null, 'без заголовка — без трафика');
+  assert.deepEqual([...hwids], [s.hwid], 'панель с лимитом устройств видит один и тот же x-hwid');
 
   await selectServer(AUTO, secret);
   assert.match(await viaCore('http://x.lzk/'), /^via:[AB]$/, 'обычный сайт — через Авто');
@@ -128,6 +132,16 @@ try {
   assert.equal(await viaCore('http://b.lzk/'), 'via:B', 'сайт со своим сервером');
   assert.equal(await viaCore('http://www.b.lzk/'), 'via:B', 'и его поддомены');
   assert.doesNotMatch(await viaCore('http://gone.lzk/'), /^via:/, 'сервера нет в подписке — блок, не напрямую');
+  // тест скорости идёт через группу SPEED, не трогая выбранный сервер
+  await api(`/proxies/${SPEED}`, secret, { method: 'PUT', body: JSON.stringify({ name: '1| B' }) });
+  assert.equal(await viaCore(`http://${SPEED_HOST}/`), 'via:B', 'тест скорости — через сервер из SPEED');
+  assert.equal(await viaCore('http://x.lzk/'), 'via:A', 'а остальное — через выбранный');
+  // поток /traffic: popup показывает скорость и объём за сессию
+  const tr = await fetch('http://127.0.0.1:19090/traffic', auth);
+  const reader = tr.body.getReader();
+  const line = JSON.parse(new TextDecoder().decode((await reader.read()).value).split('\n')[0]);
+  await reader.cancel().catch(() => {});
+  for (const k of ['up', 'down', 'upTotal', 'downTotal']) assert.equal(typeof line[k], 'number', `/traffic: ${JSON.stringify(line)}`);
 
   // выбран мёртвый сервер: трафик не уходит напрямую, health это видит
   await selectServer('1| C', secret);

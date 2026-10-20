@@ -116,12 +116,34 @@ input[type=search] { width: 100%; margin-bottom: 6px; }
 .delay.mid { color: var(--mid); }
 .delay.slow, .delay.bad { color: var(--err); }
 .empty { padding: 10px 6px; color: var(--muted); text-align: center; }
-.sub-head { display: flex; align-items: center; gap: 7px; margin: 8px 4px 2px; padding-top: 7px; border-top: 1px solid var(--border); font-size: 12px; }
-.sub-ico { flex: none; width: 16px; height: 16px; border-radius: 4px; object-fit: contain; }
+/* шапка подписки в две строки: название, под ним трафик · срок · «через VPN» и ссылки провайдера */
+.sub-head { display: flex; align-items: flex-start; gap: 7px; margin: 8px 4px 2px; padding-top: 7px; border-top: 1px solid var(--border); font-size: 12px; }
+.sub-ico { flex: none; width: 16px; height: 16px; margin-top: 1px; border-radius: 4px; object-fit: contain; }
 .sub-ico.letter { display: inline-grid; place-items: center; color: #fff; font-size: 10px; font-weight: 700; }
+.sub-lines { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .sub-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sub-info { margin-left: auto; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.sub-second { display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; }
+.sub-info { color: var(--muted); font-size: 11px; }
 .sub-info.warn { color: var(--warn); }
+.sub-link { color: var(--accent); font-size: 11px; text-decoration: none; }
+.sub-link:hover { text-decoration: underline; }
+
+/* строка сервера: выбор + тест скорости (кнопка видна при наведении, результат — всегда) */
+.node-row { display: flex; align-items: center; }
+.node-row .node { flex: 1; min-width: 0; }
+.spd { flex: none; min-width: 26px; height: 26px; margin-left: 2px; padding: 0 6px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 11px; opacity: 0; }
+.node-row:hover .spd, .spd:focus-visible, .spd.has, .spd.busy { opacity: 1; }
+.spd:hover:not(:disabled) { background: var(--card-2); color: var(--text); }
+.spd.has { color: var(--accent); }
+.more { padding: 6px 0 2px; text-align: center; }
+
+.rate { min-height: 16px; margin-top: 2px; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.news { border-color: #4c8dd6; }
+.news-head { display: flex; align-items: center; gap: 6px; }
+.news-head b { flex: 1; }
+.news p { margin: 4px 0 0; white-space: pre-line; overflow-wrap: anywhere; }
+.meta-row { margin-top: 10px; }
+.meta-row .hint { flex: 1; }
 .sub-error { display: flex; align-items: center; gap: 8px; margin: 4px 4px 6px; padding: 7px 9px; border-radius: 8px; background: var(--err-soft); font-size: 12px; }
 .sub-error span { flex: 1; }
 .sub-error .btn { flex: none; }

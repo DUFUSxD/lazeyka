@@ -1,6 +1,6 @@
 import {
-  AUTO, load, ensureConfig, updateBlocked, proxyState, setBadge, health, selectServer, toggle, plainName,
-  checkUpdate, newer, hostCall,
+  AUTO, load, ensureConfig, pushConfig, updateBlocked, proxyState, applyProxy, setBadge, health, selectServer, toggle, plainName,
+  checkUpdate, newer, hostCall, ensureHwid, subStatus, refreshMeta, migrateSub, subInterval,
 } from './lib.js';
 
 const VERSION = chrome.runtime.getManifest().version;
@@ -24,6 +24,7 @@ async function sync() {
       state = on ? 'core' : 'ok';
     }
   }
+  if (h) await subAlerts(s, h);
   await setBadge(on, state !== 'ok');
   const { last } = await chrome.storage.session.get({ last: 'ok' });
   if (state === last) return;
@@ -36,7 +37,58 @@ async function sync() {
   if (state === 'core') notify('lzk', 'Лазейка: ядро mihomo не запущено', 'Сайты через VPN не откроются. Открой Лазейку и нажми «Запустить ядро».');
   if (state === 'ok' && last !== 'ok') chrome.notifications.clear('lzk');
 }
+
+// Подписка кончается или трафик на исходе — одно уведомление на каждое событие. Ключ включает срок и объём,
+// поэтому после продления (новая дата) предупреждение придёт снова, когда опять подойдёт срок.
+async function subAlerts(s, h) {
+  const fresh = [];
+  for (const sub of h.subs) {
+    const st = subStatus(sub.info);
+    if (!st || !sub.url) continue;
+    const days = Math.max(1, Math.ceil(st.daysLeft));
+    const events = [
+      st.expired && ['expired', `Подписка «${sub.name}» закончилась`, 'Продли её у провайдера — иначе её серверы перестанут работать.'],
+      st.expiresSoon && ['soon', `Подписка «${sub.name}» заканчивается`, `Осталось ${days} ${days === 1 ? 'день' : days < 5 ? 'дня' : 'дней'} — не забудь продлить.`],
+      st.trafficLow && ['traffic', `Трафик подписки «${sub.name}» на исходе`, `Израсходовано ${Math.round((st.used / st.total) * 100)}% — осталось ${((st.total - st.used) / 1024 ** 3).toFixed(1)} ГБ.`],
+    ].filter(Boolean);
+    for (const [kind, title, text] of events) {
+      const key = `${sub.url}|${kind}|${st.expireMs}|${st.total}`;
+      if (s.alerted.includes(key)) continue;
+      fresh.push(key);
+      notify(`lzk-sub-${fresh.length}-${Date.now()}`, `Лазейка: ${title}`, text);
+    }
+  }
+  if (fresh.length) await chrome.storage.local.set({ alerted: [...s.alerted, ...fresh].slice(-50) });
+}
+
 const blocked = () => updateBlocked().catch(() => {}); // нет сети/GitHub — останется прошлый список
+
+// Данные от провайдера (название, поддержка, объявление, интервал, переезд). Подписка переехала — меняем ссылку везде
+// и перезаливаем ядро; изменился интервал обновления — тоже.
+let metaRunning = false;
+async function meta() {
+  if (metaRunning) return;
+  metaRunning = true;
+  try {
+    let s = await load();
+    if (!s.secret || !s.subs.length) return;
+    const intervals = (x) => JSON.stringify(x.subs.map((u) => subInterval(x, u)));
+    const before = intervals(s);
+    s = { ...s, subMeta: await refreshMeta(s) };
+    let moved = 0;
+    for (const url of [...s.subs]) {
+      const to = s.subMeta[url]?.newUrl;
+      if (!to || s.subs.includes(to)) continue;
+      Object.assign(s, migrateSub(s, url, to));
+      moved++;
+      notify(`lzk-move-${moved}`, 'Лазейка: провайдер сменил адрес подписки', `Подписка теперь на ${new URL(to).host} — обновил сам, ничего делать не нужно.`);
+    }
+    await chrome.storage.local.set({ subMeta: s.subMeta, ...(moved && { subs: s.subs, subNames: s.subNames, subsViaVpn: s.subsViaVpn }) });
+    if (moved || intervals(s) !== before) await pushConfig(s).catch(() => {});
+  } finally {
+    metaRunning = false;
+  }
+}
 
 // Новая версия на GitHub — одно уведомление на версию; дальше её показывает баннер в popup.
 async function updates() {
@@ -58,6 +110,7 @@ async function selfUpdate() {
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+  if (msg?.meta) { meta().then(() => reply({ ok: true }), (e) => reply({ ok: false, error: e.message })); return true; }
   const run = { update: selfUpdate, start: () => hostCall('start'), ping: () => hostCall('ping') }[msg?.host];
   if (!run) return false;
   run().then(reply, (e) => reply({ ok: false, error: e.message }));
@@ -74,21 +127,32 @@ async function scheduleUpdates(check) {
 }
 
 async function setup() {
+  await ensureHwid();
   chrome.alarms.create('sync', { periodInMinutes: 1 });
   chrome.alarms.create('blocked', { periodInMinutes: 360 });
+  chrome.alarms.create('meta', { periodInMinutes: 60 });
   sync();
   blocked();
+  meta().catch(() => {});
   await scheduleUpdates(true);
 }
 chrome.storage.onChanged.addListener((ch, area) => { if (area === 'local' && ch.updateEvery) scheduleUpdates(false); });
-chrome.runtime.onInstalled.addListener((d) => {
+chrome.runtime.onInstalled.addListener(async (d) => {
+  // новая версия могла поменять правила сайтов или конфиг ядра — применить сразу, а не при следующем включении
+  await ensureHwid();
+  const s = await load();
+  if ((await proxyState()).on) await applyProxy(s).catch(() => {});
+  // ядро держит конфиг прошлой версии, пока его не перезапустят, — перезалить (ядро не запущено — догонит ensureConfig)
+  if (d.reason === 'update' && s.secret && s.subs.length) await pushConfig(s).catch(() => {});
   setup();
   if (d.reason === 'update' && d.previousVersion !== VERSION) {
     notify('lzk-upd', `Лазейка обновлена до ${VERSION}`, 'Всё готово, настройки на месте.');
   }
 });
 chrome.runtime.onStartup.addListener(setup);
-chrome.alarms.onAlarm.addListener((a) => ({ blocked, update: updates }[a.name] ?? sync)());
+chrome.alarms.onAlarm.addListener((a) => ({ blocked, update: updates, meta }[a.name] ?? sync)());
+// разрешение на сайт панели выдают из popup, а он может закрыться от окна браузера — данные качаем здесь
+chrome.permissions.onAdded.addListener(() => meta().catch(() => {}));
 
 chrome.commands.onCommand.addListener((cmd) => { if (cmd === 'toggle') toggle().then(sync); });
 

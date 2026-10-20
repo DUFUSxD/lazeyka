@@ -22,7 +22,13 @@
     </button>
     <div id="status" class="status">Выключено</div>
     <div id="sub" class="sub"></div>
+    <div id="rate" class="rate" title="Трафик через VPN с запуска ядра; сайты «напрямую» сюда не входят"></div>
   </div>
+
+  <section id="news" class="card news" hidden>
+    <div class="news-head"><b id="newsTitle"></b><button id="newsClose" class="icon-btn small" aria-label="Скрыть сообщение" title="Скрыть">✕</button></div>
+    <p id="newsText"></p>
+  </section>
 
   <section id="upd" class="card upd" hidden>
     <b id="updTitle"></b>
@@ -85,6 +91,14 @@
         <textarea id="subs" rows="3" placeholder="https://panel.example.com/sub/xxxx&#10;Мой провайдер https://vpn.example.org/s/yyyy" spellcheck="false"></textarea>
       </label>
       <label class="check"><input type="checkbox" id="subViaVpn"><span>Качать подписки через VPN<span class="hint">Если сайт панели заблокирован в этой сети. Работает, когда серверы уже загружены.</span></span></label>
+      <div class="field-row meta-row"><span class="hint" id="metaHint"></span><button id="metaGrant" class="btn small" type="button">Разрешить</button></div>
+    </section>
+
+    <section class="card">
+      <h3>Список серверов</h3>
+      <label class="field-row">Порядок<select id="sortServers"></select></label>
+      <label class="check"><input type="checkbox" id="hideDead"><span>Скрывать неработающие серверы<span class="hint">Выбранный сейчас и привязанные к сайтам видны всегда</span></span></label>
+      <label class="check"><input type="checkbox" id="pingOnOpen"><span>Проверять серверы при открытии окна<span class="hint">Не чаще раза в минуту</span></span></label>
     </section>
 
     <section class="card">
