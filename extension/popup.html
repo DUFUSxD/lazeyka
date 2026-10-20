@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Лазейка</title>
+<style>
+  body { width: 340px; margin: 0; padding: 12px; font: 13px system-ui, sans-serif; background: #1d2127; color: #e6e6e6; }
+  #toggle { width: 100%; padding: 14px; border: 0; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; background: #444; color: #fff; }
+  #toggle.on { background: #2e9e5b; }
+  #site { margin-top: 10px; padding: 8px; border-radius: 8px; background: #262b33; }
+  #host { font-weight: 600; word-break: break-all; }
+  #now { color: #9aa; font-size: 12px; }
+  .seg { display: flex; gap: 4px; margin-top: 6px; }
+  .seg button { flex: 1; }
+  .seg button.cur { background: #2e9e5b; color: #fff; }
+  #msg { min-height: 1em; margin: 8px 0; color: #f0b44c; }
+  .row { display: flex; gap: 6px; margin-bottom: 6px; }
+  .row button { flex: 1; }
+  button { padding: 6px; border: 0; border-radius: 6px; background: #333a44; color: #e6e6e6; cursor: pointer; }
+  ul { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; }
+  li { display: flex; justify-content: space-between; gap: 8px; padding: 7px 8px; border-radius: 6px; cursor: pointer; }
+  li:hover { background: #2a3038; }
+  li.cur { background: #24452f; }
+  li::after { content: attr(data-d); color: #9aa; white-space: nowrap; }
+  details { margin-top: 10px; }
+  summary { cursor: pointer; }
+  label { display: block; margin: 8px 0 0; }
+  label.chk { display: flex; gap: 6px; align-items: flex-start; }
+  .hint { color: #9aa; font-size: 11px; }
+  textarea, input[type=password], select { box-sizing: border-box; width: 100%; margin: 4px 0; background: #111418; color: #e6e6e6; border: 1px solid #333a44; border-radius: 6px; padding: 6px; }
+  textarea { height: 70px; font: 11px monospace; }
+  #save { width: 100%; margin-top: 8px; background: #2e9e5b; color: #fff; }
+</style>
+</head>
+<body>
+  <button id="toggle">ВЫКЛ</button>
+  <div id="site" hidden>
+    <div id="host"></div>
+    <div id="now"></div>
+    <div class="seg">
+      <button data-m="auto" title="Решают правила из настроек">Авто</button>
+      <button data-m="vpn">Через VPN</button>
+      <button data-m="direct">Напрямую</button>
+    </div>
+  </div>
+  <div id="msg"></div>
+  <div class="row"><button id="ping">Пинг</button><button id="refresh">Обновить подписки и списки</button></div>
+  <ul id="list"></ul>
+  <details id="settings">
+    <summary>Настройки</summary>
+    <label>Остальные сайты (не попавшие в правила ниже)
+      <select id="rest"><option value="vpn">через VPN</option><option value="direct">напрямую</option></select>
+    </label>
+    <label class="chk"><input type="checkbox" id="ruDirect"><span>Российские сайты напрямую<br><span class="hint">.ru, .рф, .su, Яндекс, VK, Сбер… — банки и Госуслуги не ругаются на зарубежный IP</span></span></label>
+    <label class="chk"><input type="checkbox" id="useBlocked"><span>Заблокированное в РФ — всегда через VPN<br><span class="hint" id="blockedInfo"></span></span></label>
+    <label class="chk"><input type="checkbox" id="webrtc"><span>Защита от утечки IP через WebRTC<br><span class="hint">звонки в браузере пойдут по TCP</span></span></label>
+    <label>Всегда через VPN <span class="hint">— домен покрывает и поддомены</span><textarea id="vpnList" placeholder="youtube.com&#10;chatgpt.com"></textarea></label>
+    <label>Всегда напрямую<textarea id="directList" placeholder="gosuslugi.ru&#10;work-portal.com"></textarea></label>
+    <label>Secret <span class="hint">— выводит установщик, лежит в core\config.yaml</span><input id="secret" type="password"></label>
+    <label>Подписки, по одной ссылке на строку<textarea id="subs" placeholder="https://panel.example.com/sub/xxxx"></textarea></label>
+    <button id="save">Сохранить</button>
+  </details>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

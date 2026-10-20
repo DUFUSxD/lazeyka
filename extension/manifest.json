@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Лазейка",
+  "version": "1.0.0",
+  "description": "VPN в браузере через свои подписки (VLESS/VMess/Trojan/SS/Hysteria2) на локальном mihomo, с правилами по сайтам",
+  "permissions": ["proxy", "privacy", "storage", "alarms", "activeTab"],
+  "host_permissions": ["http://127.0.0.1:19090/*"],
+  "action": { "default_popup": "popup.html", "default_title": "Лазейка" },
+  "background": { "service_worker": "background.js", "type": "module" }
+}
