@@ -49,6 +49,14 @@ button:disabled { opacity: .55; cursor: default; }
 .btn.ghost { background: transparent; }
 .btn.wide { width: 100%; }
 
+/* Идёт действие (busy в popup.js): кружок на кнопке, у значка ⟳ крутится сама стрелка */
+@keyframes spin { to { transform: rotate(360deg); } }
+.btn.loading, .icon-btn.loading, .spd.loading { opacity: 1; cursor: progress; }
+.btn.loading::before, .spd.loading::before { content: ""; display: inline-block; width: 1em; height: 1em; margin-right: 6px; vertical-align: -.15em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
+.spd.loading::before { margin-right: 0; }
+.icon-btn.loading svg { animation: spin .8s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .btn.loading::before, .spd.loading::before, .icon-btn.loading svg { animation-duration: 2s; } }
+
 .hero { display: flex; flex-direction: column; align-items: center; padding: 6px 12px 14px; }
 .power {
   width: 92px; height: 92px; border-radius: 50%; border: 2px solid var(--border); background: var(--card);
