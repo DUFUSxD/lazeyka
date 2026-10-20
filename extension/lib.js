@@ -10,16 +10,23 @@ const API = `http://${CONTROLLER}`;
 
 export const DEFAULTS = {
   subs: [], secret: '',
+  subNames: {},       // ссылка подписки → своё название
   rest: 'vpn',        // куда идут сайты, не попавшие ни в одно правило: 'vpn' | 'direct'
   ruDirect: true,     // российские сайты напрямую
   useBlocked: true,   // заблокированные в РФ — через VPN
   webrtc: true,
   subViaVpn: false,   // качать подписки через VPN (если панель заблокирована в этой сети)
+  pingInterval: 300,  // автопинг серверов (health-check группы ⚡ Авто), секунды
+  updateEvery: 360,   // проверка обновлений, минуты; 0 — только вручную
   vpnList: [], directList: [],
   siteServers: {},    // домен → имя сервера (или AUTO)
   blocked: [], blockedAt: 0,
 };
 export const load = () => chrome.storage.local.get(DEFAULTS);
+
+// Допустимые значения частоты проверок (они же — пункты выпадающих списков в настройках).
+export const PING_OPTIONS = [[60, 'каждую минуту'], [300, 'каждые 5 минут'], [900, 'каждые 15 минут'], [1800, 'каждые 30 минут'], [3600, 'раз в час']];
+export const UPDATE_OPTIONS = [[60, 'каждый час'], [360, 'каждые 6 часов'], [1440, 'раз в день'], [10080, 'раз в неделю'], [0, 'только вручную']];
 
 // Российские зоны и сервисы на иностранных доменах: банки/госуслуги/маркетплейсы часто режут зарубежные IP.
 export const RU = ['ru', 'su', 'xn--p1ai', 'moscow', 'xn--80adxhks', 'tatar',
@@ -36,17 +43,26 @@ export function norm(s) {
 }
 export const parseList = (text) => [...new Set(text.split(/\r?\n/).map(norm).filter(Boolean))];
 
-// Подписки: только http(s)-ссылки. Ключ vless:// и т.п. — частая ошибка, объясняем отдельно.
+// Подписки, по одной на строку: «https://…» или «Название https://…».
+// Ключ vless:// и т.п. вместо подписки — частая ошибка, объясняем отдельно. → [{ url, name }]
 export function parseSubs(text) {
-  const lines = text.split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
-  for (const l of lines) {
-    if (/^[a-z0-9]+:\/\//i.test(l) && !/^https?:\/\//i.test(l)) {
-      throw new Error(`«${l.slice(0, 24)}…» — это ключ одного сервера, а нужна ссылка на подписку (https://…)`);
+  const out = [];
+  for (const l of text.split(/\r?\n/).map((x) => x.trim()).filter(Boolean)) {
+    const m = l.match(/^(.*?)\s*(https?:\/\/\S+)$/i);
+    if (!m) {
+      if (/[a-z0-9]+:\/\//i.test(l)) throw new Error(`«${l.slice(0, 24)}…» — это ключ одного сервера, а нужна ссылка на подписку (https://…)`);
+      throw new Error(`«${l.slice(0, 30)}» — не похоже на ссылку подписки`);
     }
-    if (!/^https?:\/\/\S+$/i.test(l)) throw new Error(`«${l.slice(0, 30)}» — не похоже на ссылку подписки`);
+    const name = m[1].replace(/[\s|:—–-]+$/, '').trim().slice(0, 40);
+    if (!out.some((x) => x.url === m[2])) out.push({ url: m[2], name });
   }
-  return [...new Set(lines)];
+  return out;
 }
+
+// Имя подписки: своё или домен панели.
+export const subName = (s, url) => s.subNames[url] || new URL(url).hostname;
+// При нескольких подписках mihomo добавляет к именам серверов префикс «1| » — людям он не нужен.
+export const plainName = (n) => n.replace(/^\d+\| /, '');
 
 const toSet = (list, v = 1) => Object.fromEntries(list.map((d) => [d, v]));
 export const buildRules = (s) => ({
@@ -124,7 +140,7 @@ export function buildConfig(s) {
     'proxy-groups': [
       { name: GROUP, type: 'select', proxies: ['REJECT', AUTO], use: names },
       // lazy: false — проверять серверы всегда, иначе нечем показывать задержки и ловить «все умерли»
-      { name: AUTO, type: 'url-test', proxies: ['REJECT'], use: names, url: TEST_URL, interval: 300, tolerance: 50, lazy: false },
+      { name: AUTO, type: 'url-test', proxies: ['REJECT'], use: names, url: TEST_URL, interval: s.pingInterval, tolerance: 50, lazy: false },
       ...groups.map((_, i) => ({ name: `SITE${i}`, type: 'select', proxies: ['REJECT'], use: names })),
     ],
     rules: [...siteRules, `MATCH,${GROUP}`],
@@ -171,12 +187,24 @@ export async function health(s) {
   const [{ providers }, g, auto] = await Promise.all([
     api('/providers/proxies', s.secret), api(`/proxies/${GROUP}`, s.secret), api(`/proxies/${AUTO}`, s.secret),
   ]);
+  // провайдеры sub1…subN ↔ s.subs[0…N-1]; JSON-ключи mihomo отсортированы как строки (sub10 < sub2), сортируем по номеру
+  const subs = Object.entries(providers).filter(([, p]) => p.vehicleType === 'HTTP')
+    .map(([key, p]) => ({ key, i: Number(key.slice(3)) - 1, p }))
+    .sort((a, b) => a.i - b.i)
+    .map(({ key, i, p }) => ({
+      key,
+      url: s.subs[i],
+      name: s.subs[i] ? subName(s, s.subs[i]) : key,
+      info: p.subscriptionInfo ?? null, // из заголовка Subscription-Userinfo: Upload/Download/Total байты, Expire unix-время
+      servers: p.proxies.map((n) => n.name),
+    }));
   const nodes = new Map(Object.values(providers).filter((p) => p.vehicleType === 'HTTP').flatMap((p) => p.proxies)
     .map((n) => [n.name, { alive: n.alive, delay: n.history.length ? n.history.at(-1).delay : null }]));
   const list = [...nodes.values()];
   const checked = list.some((n) => n.delay !== null);
   return {
     all: g.all.filter((n) => n !== 'REJECT'), // AUTO + серверы в порядке подписок
+    subs,
     now: g.now,
     autoNow: auto.now,
     nodes,
@@ -280,7 +308,7 @@ export function hostCall(cmd) {
 }
 
 // --- перенос настроек одной строкой (без secret — он свой на каждом компьютере)
-const PORTABLE = ['subs', 'rest', 'ruDirect', 'useBlocked', 'webrtc', 'subViaVpn', 'vpnList', 'directList', 'siteServers'];
+const PORTABLE = ['subs', 'subNames', 'rest', 'ruDirect', 'useBlocked', 'webrtc', 'subViaVpn', 'vpnList', 'directList', 'siteServers', 'pingInterval', 'updateEvery'];
 const b64enc = (str) => {
   let bin = '';
   for (const b of new TextEncoder().encode(str)) bin += String.fromCharCode(b);
@@ -300,9 +328,16 @@ export function importSettings(str) {
   if (!o || typeof o !== 'object') throw new Error('Строка настроек повреждена');
   const strings = (v) => Array.isArray(v) && v.every((x) => typeof x === 'string');
   const out = {};
-  if (strings(o.subs)) out.subs = parseSubs(o.subs.join('\n'));
+  if (strings(o.subs)) out.subs = parseSubs(o.subs.join('\n')).map((x) => x.url);
+  if (o.subNames && typeof o.subNames === 'object') {
+    out.subNames = Object.fromEntries(Object.entries(o.subNames)
+      .filter(([u, n]) => /^https?:\/\/\S+$/i.test(u) && typeof n === 'string' && n.trim())
+      .map(([u, n]) => [u, n.trim().slice(0, 40)]));
+  }
   if (o.rest === 'vpn' || o.rest === 'direct') out.rest = o.rest;
   for (const k of ['ruDirect', 'useBlocked', 'webrtc', 'subViaVpn']) if (typeof o[k] === 'boolean') out[k] = o[k];
+  if (PING_OPTIONS.some(([v]) => v === o.pingInterval)) out.pingInterval = o.pingInterval;
+  if (UPDATE_OPTIONS.some(([v]) => v === o.updateEvery)) out.updateEvery = o.updateEvery;
   for (const k of ['vpnList', 'directList']) if (strings(o[k])) out[k] = parseList(o[k].join('\n'));
   if (o.siteServers && typeof o.siteServers === 'object') {
     out.siteServers = Object.fromEntries(Object.entries(o.siteServers)

@@ -1,3 +1,11 @@
+/* Флаги стран: Windows не рисует эмодзи-флаги и показывает буквы («NL»). Шрифт берёт только символы флагов,
+   остальной текст идёт следующим шрифтом в списке. Twemoji (CC-BY 4.0) через country-flag-emoji-polyfill (MIT). */
+@font-face {
+  font-family: "Twemoji Country Flags";
+  src: url("fonts/TwemojiCountryFlags.woff2") format("woff2");
+  unicode-range: U+1F1E6-1F1FF, U+1F3F4, U+E0062-E007F;
+}
+
 :root {
   --bg: #14171c; --card: #1d2229; --card-2: #252b33; --text: #e9ecef; --muted: #98a2ad; --border: #2e353e;
   --accent: #2fb36b; --accent-2: #1f8f52; --accent-soft: rgba(47, 179, 107, .16);
@@ -17,7 +25,7 @@
 
 * { box-sizing: border-box; }
 html { overflow-x: hidden; } /* вертикальный скролл не должен давать горизонтальный */
-body { width: 360px; margin: 0; background: var(--bg); color: var(--text); font: 13px/1.4 system-ui, "Segoe UI", sans-serif; }
+body { width: 360px; margin: 0; background: var(--bg); color: var(--text); font: 13px/1.4 "Twemoji Country Flags", system-ui, "Segoe UI", sans-serif; }
 [hidden] { display: none !important; }
 svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 button { font: inherit; color: inherit; cursor: pointer; }
@@ -65,11 +73,13 @@ button:disabled { opacity: .55; cursor: default; }
 .alert { margin: 0 12px 10px; padding: 10px 12px; border-radius: 12px; background: var(--err-soft); border: 1px solid var(--err); }
 .alert.info { background: var(--accent-soft); border-color: var(--accent); }
 .alert p { margin: 4px 0 8px; color: var(--text); }
-.cmd { display: block; margin-bottom: 8px; padding: 6px 8px; border-radius: 6px; background: var(--bg); font: 11px/1.4 Consolas, monospace; word-break: break-all; user-select: all; }
+.cmd { display: block; margin-bottom: 8px; padding: 6px 8px; border-radius: 6px; background: var(--bg); font: 11px/1.4 "Twemoji Country Flags", Consolas, monospace; word-break: break-all; user-select: all; }
 .row-btns { display: flex; flex-wrap: wrap; gap: 6px; }
 .upd { border-color: var(--accent); background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--card); }
 .upd-notes { margin: 6px 0 10px; padding-left: 18px; color: var(--muted); font-size: 12px; }
 .upd-notes li { margin: 2px 0; }
+.upd-link { align-self: center; margin-left: auto; color: var(--accent); font-size: 12px; text-decoration: none; }
+.upd-link:hover { text-decoration: underline; }
 .upd-manual { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); }
 .upd-manual .hint { margin: 0 0 6px; }
 
@@ -90,7 +100,7 @@ button:disabled { opacity: .55; cursor: default; }
 select, input[type=search], input[type=password], input[type=text], input:not([type]), textarea {
   font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px;
 }
-textarea { width: 100%; resize: vertical; font: 12px/1.45 Consolas, monospace; }
+textarea { width: 100%; resize: vertical; font: 12px/1.45 "Twemoji Country Flags", Consolas, monospace; }
 input[type=search] { width: 100%; margin-bottom: 6px; }
 
 .servers #list { list-style: none; margin: 0 -4px; padding: 0; max-height: 196px; overflow-y: auto; }
@@ -106,6 +116,12 @@ input[type=search] { width: 100%; margin-bottom: 6px; }
 .delay.mid { color: var(--mid); }
 .delay.slow, .delay.bad { color: var(--err); }
 .empty { padding: 10px 6px; color: var(--muted); text-align: center; }
+.sub-head { display: flex; align-items: center; gap: 7px; margin: 8px 4px 2px; padding-top: 7px; border-top: 1px solid var(--border); font-size: 12px; }
+.sub-ico { flex: none; width: 16px; height: 16px; border-radius: 4px; object-fit: contain; }
+.sub-ico.letter { display: inline-grid; place-items: center; color: #fff; font-size: 10px; font-weight: 700; }
+.sub-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sub-info { margin-left: auto; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.sub-info.warn { color: var(--warn); }
 
 #settingsView { display: flex; flex-direction: column; }
 .scroll { max-height: 486px; overflow-y: auto; padding-bottom: 4px; }
@@ -122,7 +138,7 @@ input[type=search] { width: 100%; margin-bottom: 6px; }
 .bindings li span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .import { display: flex; gap: 6px; margin-top: 8px; }
 .import input { flex: 1; min-width: 0; }
-kbd { padding: 1px 6px; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px; background: var(--card-2); font: 12px Consolas, monospace; }
+kbd { padding: 1px 6px; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px; background: var(--card-2); font: 12px "Twemoji Country Flags", Consolas, monospace; }
 .footer { display: flex; gap: 8px; justify-content: flex-end; padding: 10px 12px; border-top: 1px solid var(--border); background: var(--bg); }
 
 .toast {

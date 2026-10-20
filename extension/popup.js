@@ -1,7 +1,7 @@
 import {
-  GROUP, AUTO, api, load, norm, parseList, parseSubs, buildRules, decide, isLan,
+  GROUP, AUTO, api, load, norm, parseList, parseSubs, plainName, buildRules, decide, isLan,
   pushConfig, ensureConfig, health, selectServer, testGroup, proxyState, applyProxy, toggle, updateBlocked,
-  exportSettings, importSettings, checkUpdate, newer, UPDATE_CMD,
+  exportSettings, importSettings, checkUpdate, newer, UPDATE_CMD, PING_OPTIONS, UPDATE_OPTIONS,
 } from './lib.js';
 
 const $ = (id) => document.getElementById(id);
@@ -128,7 +128,11 @@ function renderPower() {
   if (h && !h.empty) {
     const cur = h.now === AUTO ? h.autoNow : h.now;
     if (h.now === AUTO && cur === 'REJECT') sub = h.dead ? '⚡ Авто: живых серверов нет' : '⚡ Авто подбирает сервер…';
-    else sub = `${h.now === AUTO ? '⚡ Авто → ' : ''}${cur}${delayOf(cur)[0] ? ` · ${delayOf(cur)[0]}` : ''}`;
+    else {
+      // при нескольких подписках — чей это сервер
+      const from = h.subs.length > 1 ? h.subs.find((x) => x.servers.includes(cur))?.name : null;
+      sub = `${h.now === AUTO ? '⚡ Авто → ' : ''}${plainName(cur)}${from ? ` (${from})` : ''}${delayOf(cur)[0] ? ` · ${delayOf(cur)[0]}` : ''}`;
+    }
   }
   $('status').textContent = status;
   $('sub').textContent = sub;
@@ -150,12 +154,18 @@ function renderSite() {
   $('siteServerRow').hidden = mode === 'direct';
   const names = h ? h.all.filter((n) => n !== AUTO) : [];
   const missing = bound && bound !== AUTO && h && !names.includes(bound);
-  const opts = [['', 'Как у всех'], [AUTO, '⚡ Авто'], ...names.map((n) => [n, n])];
-  if (bound && !opts.some(([v]) => v === bound)) opts.push([bound, `${bound} (нет в подписке)`]);
-  $('siteServer').replaceChildren(...opts.map(([v, t]) => new Option(t, v)));
+  // серверы сгруппированы по подпискам, как в списке
+  const groups = (h?.subs ?? []).map((sub) => {
+    const g = document.createElement('optgroup');
+    g.label = sub.name;
+    g.append(...sub.servers.map((n) => new Option(plainName(n), n)));
+    return g;
+  });
+  const extra = bound && bound !== AUTO && !names.includes(bound) ? [new Option(`${plainName(bound)} (нет в подписке)`, bound)] : [];
+  $('siteServer').replaceChildren(new Option('Как у всех', ''), new Option('⚡ Авто', AUTO), ...groups, ...extra);
   $('siteServer').value = bound ?? '';
   $('siteWarn').hidden = !missing;
-  $('siteWarn').textContent = missing ? `⚠ Сервера «${bound}» больше нет в подписке — сайт заблокирован. Выбери другой.` : '';
+  $('siteWarn').textContent = missing ? `⚠ Сервера «${plainName(bound)}» больше нет в подписке — сайт заблокирован. Выбери другой.` : '';
 }
 
 function renderServers() {
@@ -170,32 +180,101 @@ function renderServers() {
   }
   $('count').textContent = String(h.all.length - 1);
   $('search').hidden = h.all.length <= 9;
-  $('list').replaceChildren(...h.all.filter((n) => !q || n === AUTO || n.toLowerCase().includes(q)).map((n) => {
-    const isAuto = n === AUTO;
-    const [d, cls] = delayOf(isAuto ? h.autoNow : n);
-    const b = document.createElement('button');
-    b.className = `node${n === h.now ? ' cur' : ''}${cls === 'bad' ? ' dead' : ''}`;
-    b.setAttribute('role', 'option');
-    b.setAttribute('aria-selected', String(n === h.now));
-    const name = document.createElement('span');
-    name.className = 'name';
-    name.textContent = isAuto ? '⚡ Авто' : n;
-    if (isAuto) {
-      const hint = document.createElement('span');
-      hint.className = 'hint';
-      hint.textContent = h.autoNow === 'REJECT' ? 'самый быстрый живой' : `→ ${h.autoNow}`;
-      name.append(hint);
-    }
-    const delay = document.createElement('span');
-    delay.className = `delay ${cls}`;
-    delay.textContent = d;
-    b.append(name, delay);
-    b.title = isAuto ? 'Сам выбирает самый быстрый живой сервер и переключается, если текущий упал' : n;
-    b.onclick = () => run(async () => { await selectServer(n, s.secret); await refreshHealth(); });
-    const li = document.createElement('li');
-    li.append(b);
-    return li;
+  const match = (n) => !q || plainName(n).toLowerCase().includes(q);
+  // ⚡ Авто сверху, дальше серверы группами по подпискам: шапка с логотипом, названием, трафиком и сроком
+  $('list').replaceChildren(nodeItem(AUTO), ...h.subs.flatMap((sub) => {
+    const servers = sub.servers.filter(match);
+    return servers.length ? [subHeader(sub), ...servers.map(nodeItem)] : [];
   }));
+}
+
+function nodeItem(n) {
+  const isAuto = n === AUTO;
+  const [d, cls] = delayOf(isAuto ? h.autoNow : n);
+  const b = document.createElement('button');
+  b.className = `node${n === h.now ? ' cur' : ''}${cls === 'bad' ? ' dead' : ''}`;
+  b.setAttribute('role', 'option');
+  b.setAttribute('aria-selected', String(n === h.now));
+  const name = document.createElement('span');
+  name.className = 'name';
+  name.textContent = isAuto ? '⚡ Авто' : plainName(n);
+  if (isAuto) {
+    const hint = document.createElement('span');
+    hint.className = 'hint';
+    hint.textContent = h.autoNow === 'REJECT' ? 'самый быстрый живой' : `→ ${plainName(h.autoNow)}`;
+    name.append(hint);
+  }
+  const delay = document.createElement('span');
+  delay.className = `delay ${cls}`;
+  delay.textContent = d;
+  b.append(name, delay);
+  b.title = isAuto ? 'Сам выбирает самый быстрый живой сервер и переключается, если текущий упал' : plainName(n);
+  b.onclick = () => run(async () => { await selectServer(n, s.secret); await refreshHealth(); });
+  const li = document.createElement('li');
+  li.append(b);
+  return li;
+}
+
+// Трафик и срок из заголовка Subscription-Userinfo (его отдают 3x-ui, Marzban, Remnawave и многие провайдеры).
+function subInfo(i) {
+  if (!i) return ['', false];
+  const GB = 1024 ** 3;
+  const gb = (b) => (b / GB).toFixed(b < 10 * GB ? 1 : 0);
+  const used = (i.Upload || 0) + (i.Download || 0);
+  const parts = [];
+  let warn = false;
+  if (i.Total) { parts.push(`${gb(used)} из ${gb(i.Total)} ГБ`); warn = used / i.Total > 0.9; } else if (used) parts.push(`${gb(used)} ГБ`);
+  if (i.Expire) {
+    const days = (i.Expire * 1000 - Date.now()) / 864e5;
+    parts.push(days < 0 ? 'истекла' : `до ${new Date(i.Expire * 1000).toLocaleDateString('ru', { day: 'numeric', month: 'short' })}`);
+    warn ||= days < 3;
+  }
+  return [parts.join(' · '), warn];
+}
+
+function subHeader(sub) {
+  const li = document.createElement('li');
+  li.className = 'sub-head';
+  const name = document.createElement('span');
+  name.className = 'sub-name';
+  name.textContent = sub.name;
+  name.title = sub.url ?? '';
+  const [text, warn] = subInfo(sub.info);
+  const info = document.createElement('span');
+  info.className = `sub-info${warn ? ' warn' : ''}`;
+  info.textContent = text;
+  li.append(subIcon(sub), name, info);
+  return li;
+}
+
+// Логотип подписки — favicon сайта панели (сначала сам адрес, потом основной домен), иначе кружок с буквой.
+// Сторонние сервисы иконок не используем: они узнали бы, какими панелями ты пользуешься.
+const icons = new Map(); // url подписки → найденный адрес картинки или null
+function subIcon(sub) {
+  const letter = () => {
+    const el = document.createElement('span');
+    el.className = 'sub-ico letter';
+    el.textContent = (sub.name.match(/[\p{L}\p{N}]/u)?.[0] ?? '?').toUpperCase();
+    el.style.background = `hsl(${[...sub.name].reduce((a, c) => a + c.codePointAt(0), 0) % 360} 50% 42%)`;
+    return el;
+  };
+  if (!sub.url) return letter();
+  const known = icons.get(sub.url);
+  if (known === null) return letter();
+  const img = new Image(16, 16);
+  img.className = 'sub-ico';
+  img.alt = '';
+  const u = new URL(sub.url);
+  const parts = u.hostname.split('.');
+  const tries = known ? [known] : [`${u.origin}/favicon.ico`,
+    ...(parts.length > 2 && !/^[\d.]+$/.test(u.hostname) ? [`https://${parts.slice(-2).join('.')}/favicon.ico`] : [])];
+  img.onload = () => icons.set(sub.url, img.src);
+  img.onerror = () => {
+    const next = tries.shift();
+    if (next) img.src = next; else { icons.set(sub.url, null); img.replaceWith(letter()); }
+  };
+  img.src = tries.shift();
+  return img;
 }
 
 async function refreshHealth() {
@@ -318,12 +397,19 @@ $('checkUpd').onclick = () => run(() => busy($('checkUpd'), async () => {
 }));
 
 // --- настройки
+for (const [id, opts] of [['pingInterval', PING_OPTIONS], ['updateEvery', UPDATE_OPTIONS]]) {
+  $(id).replaceChildren(...opts.map(([v, t]) => new Option(t, v)));
+}
+
 function fillSettings() {
   rest = s.rest;
   bindings = { ...s.siteServers };
   for (const b of document.querySelectorAll('#restSeg button')) b.setAttribute('aria-checked', String(b.dataset.v === rest));
   for (const k of ['ruDirect', 'useBlocked', 'webrtc', 'subViaVpn']) $(k).checked = s[k];
-  for (const k of ['vpnList', 'directList', 'subs']) $(k).value = s[k].join('\n');
+  $('pingInterval').value = s.pingInterval;
+  $('updateEvery').value = s.updateEvery;
+  for (const k of ['vpnList', 'directList']) $(k).value = s[k].join('\n');
+  $('subs').value = s.subs.map((u) => (s.subNames[u] ? `${s.subNames[u]} ${u}` : u)).join('\n');
   $('secret').value = s.secret;
   $('blockedInfo').textContent = s.blocked.length
     ? `Список itdoginfo: ${s.blocked.length} доменов, обновлён ${new Date(s.blockedAt).toLocaleDateString('ru')}`
@@ -337,7 +423,7 @@ function renderBindings() {
   $('bindings').replaceChildren(...entries.map(([d, n]) => {
     const li = document.createElement('li');
     const t = document.createElement('span');
-    t.textContent = `${d} → ${n === AUTO ? '⚡ Авто' : n}`;
+    t.textContent = `${d} → ${n === AUTO ? '⚡ Авто' : plainName(n)}`;
     t.title = t.textContent;
     const x = document.createElement('button');
     x.className = 'icon-btn small';
@@ -375,7 +461,7 @@ $('showSecret').onclick = () => { $('secret').type = $('secret').type === 'passw
 
 // Сохранить новые настройки: mihomo перезаливаем, только если поменялось то, что он видит.
 async function apply(next) {
-  const mihomoKey = (x) => JSON.stringify([x.subs, x.secret, x.subViaVpn, x.siteServers]);
+  const mihomoKey = (x) => JSON.stringify([x.subs, x.secret, x.subViaVpn, x.siteServers, x.pingInterval]);
   const push = next.secret && next.subs.length && mihomoKey(next) !== mihomoKey(s);
   const { blocked, blockedAt, ...settings } = next; // список itdoginfo не трогаем
   await chrome.storage.local.set(settings);
@@ -385,15 +471,19 @@ async function apply(next) {
 }
 
 $('save').onclick = () => run(() => busy($('save'), async () => {
+  const subs = parseSubs($('subs').value);
   await apply({
     ...s,
-    subs: parseSubs($('subs').value),
+    subs: subs.map((x) => x.url),
+    subNames: Object.fromEntries(subs.filter((x) => x.name).map((x) => [x.url, x.name])),
     secret: $('secret').value.trim(),
     rest,
     ruDirect: $('ruDirect').checked,
     useBlocked: $('useBlocked').checked,
     webrtc: $('webrtc').checked,
     subViaVpn: $('subViaVpn').checked,
+    pingInterval: Number($('pingInterval').value),
+    updateEvery: Number($('updateEvery').value),
     vpnList: parseList($('vpnList').value),
     directList: parseList($('directList').value),
     siteServers: bindings,

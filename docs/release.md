@@ -20,6 +20,17 @@
 5. Если трогал `host.ps1`, `mihomo.ps1`, `install.ps1` или поток обновления — [ручная проверка](#проверка-обновления-перед-выпуском).
 6. PR → слить в `main`.
 7. Проверь, что GitHub отдаёт новое: `https://raw.githubusercontent.com/DUFUSxD/lazeyka/main/extension/manifest.json`. raw-файлы кэшируются до ~5 минут — в это время «Обновить» честно скажет «GitHub ещё отдаёт старую версию».
+8. Релиз на GitHub появится сам (см. ниже) — загляни в [Releases](https://github.com/DUFUSxD/lazeyka/releases), что он есть.
+
+## Релизы на GitHub
+
+Это витрина: обновление у пользователей идёт из ветки `main`, релизы на него не влияют.
+
+- `.github/workflows/release.yml` запускается при каждом пуше в `main`, где менялся `extension/manifest.json`. Если релиза `vX.Y.Z` ещё нет — создаёт тег на этом коммите и релиз «Лазейка X.Y.Z».
+- Текст релиза собирает `.github/release-notes.mjs`: пункты раздела `## X.Y.Z` из `CHANGELOG.md` + как поставить и обновиться. Проверить локально: `node .github/release-notes.mjs 1.3.0`.
+- Повторный запуск безопасен: если релиз уже есть, workflow ничего не делает.
+- **Если релиз не появился:** Actions → «Релиз» → лог. Перезапустить — там же, «Run workflow». Ошибка 403 значит, что у workflow нет права писать: Settings → Actions → General → Workflow permissions → «Read and write permissions».
+- Релизы 1.0.0–1.2.1 опубликованы вручную тем же скриптом на коммитах, где в `main` была эта версия.
 
 ## Чего нельзя ломать
 
