@@ -3,63 +3,120 @@
 <head>
 <meta charset="utf-8">
 <title>Лазейка</title>
-<style>
-  body { width: 340px; margin: 0; padding: 12px; font: 13px system-ui, sans-serif; background: #1d2127; color: #e6e6e6; }
-  #toggle { width: 100%; padding: 14px; border: 0; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; background: #444; color: #fff; }
-  #toggle.on { background: #2e9e5b; }
-  #site { margin-top: 10px; padding: 8px; border-radius: 8px; background: #262b33; }
-  #host { font-weight: 600; word-break: break-all; }
-  #now { color: #9aa; font-size: 12px; }
-  .seg { display: flex; gap: 4px; margin-top: 6px; }
-  .seg button { flex: 1; }
-  .seg button.cur { background: #2e9e5b; color: #fff; }
-  #msg { min-height: 1em; margin: 8px 0; color: #f0b44c; }
-  .row { display: flex; gap: 6px; margin-bottom: 6px; }
-  .row button { flex: 1; }
-  button { padding: 6px; border: 0; border-radius: 6px; background: #333a44; color: #e6e6e6; cursor: pointer; }
-  ul { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; }
-  li { display: flex; justify-content: space-between; gap: 8px; padding: 7px 8px; border-radius: 6px; cursor: pointer; }
-  li:hover { background: #2a3038; }
-  li.cur { background: #24452f; }
-  li::after { content: attr(data-d); color: #9aa; white-space: nowrap; }
-  details { margin-top: 10px; }
-  summary { cursor: pointer; }
-  label { display: block; margin: 8px 0 0; }
-  label.chk { display: flex; gap: 6px; align-items: flex-start; }
-  .hint { color: #9aa; font-size: 11px; }
-  textarea, input[type=password], select { box-sizing: border-box; width: 100%; margin: 4px 0; background: #111418; color: #e6e6e6; border: 1px solid #333a44; border-radius: 6px; padding: 6px; }
-  textarea { height: 70px; font: 11px monospace; }
-  #save { width: 100%; margin-top: 8px; background: #2e9e5b; color: #fff; }
-</style>
+<link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <button id="toggle">ВЫКЛ</button>
-  <div id="site" hidden>
-    <div id="host"></div>
-    <div id="now"></div>
-    <div class="seg">
-      <button data-m="auto" title="Решают правила из настроек">Авто</button>
-      <button data-m="vpn">Через VPN</button>
-      <button data-m="direct">Напрямую</button>
-    </div>
+<header class="top">
+  <img src="icons/icon48.png" alt="" class="logo">
+  <span class="brand">Лазейка</span>
+  <span class="spacer"></span>
+  <button id="gear" class="icon-btn" title="Настройки" aria-label="Настройки">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+  </button>
+</header>
+
+<div id="mainView">
+  <div class="hero">
+    <button id="power" class="power" aria-pressed="false" aria-label="Включить Лазейку">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v8"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></svg>
+    </button>
+    <div id="status" class="status">Выключено</div>
+    <div id="sub" class="sub"></div>
   </div>
-  <div id="msg"></div>
-  <div class="row"><button id="ping">Пинг</button><button id="refresh">Обновить подписки и списки</button></div>
-  <ul id="list"></ul>
-  <details id="settings">
-    <summary>Настройки</summary>
-    <label>Остальные сайты (не попавшие в правила ниже)
-      <select id="rest"><option value="vpn">через VPN</option><option value="direct">напрямую</option></select>
-    </label>
-    <label class="chk"><input type="checkbox" id="ruDirect"><span>Российские сайты напрямую<br><span class="hint">.ru, .рф, .su, Яндекс, VK, Сбер… — банки и Госуслуги не ругаются на зарубежный IP</span></span></label>
-    <label class="chk"><input type="checkbox" id="useBlocked"><span>Заблокированное в РФ — всегда через VPN<br><span class="hint" id="blockedInfo"></span></span></label>
-    <label class="chk"><input type="checkbox" id="webrtc"><span>Защита от утечки IP через WebRTC<br><span class="hint">звонки в браузере пойдут по TCP</span></span></label>
-    <label>Всегда через VPN <span class="hint">— домен покрывает и поддомены</span><textarea id="vpnList" placeholder="youtube.com&#10;chatgpt.com"></textarea></label>
-    <label>Всегда напрямую<textarea id="directList" placeholder="gosuslugi.ru&#10;work-portal.com"></textarea></label>
-    <label>Secret <span class="hint">— выводит установщик, лежит в core\config.yaml</span><input id="secret" type="password"></label>
-    <label>Подписки, по одной ссылке на строку<textarea id="subs" placeholder="https://panel.example.com/sub/xxxx"></textarea></label>
-    <button id="save">Сохранить</button>
-  </details>
-  <script type="module" src="popup.js"></script>
+
+  <div id="alert" class="alert" role="alert" hidden>
+    <b id="alertTitle"></b>
+    <p id="alertText"></p>
+    <code id="alertCode" hidden></code>
+    <button id="alertBtn" class="btn primary"></button>
+  </div>
+
+  <section id="site" class="card" hidden>
+    <div class="site-head"><img id="fav" alt="" width="16" height="16"><span id="host"></span></div>
+    <div id="why" class="why"></div>
+    <div class="seg" role="radiogroup" aria-label="Режим для этого сайта">
+      <button data-m="auto" role="radio" title="Решают правила из настроек">Авто</button>
+      <button data-m="vpn" role="radio">Через VPN</button>
+      <button data-m="direct" role="radio">Напрямую</button>
+    </div>
+    <label id="siteServerRow" class="field-row"><span>Сервер для сайта</span><select id="siteServer"></select></label>
+    <div id="siteWarn" class="warn-text" hidden></div>
+  </section>
+
+  <section id="servers" class="card servers">
+    <div class="card-head">
+      <b>Серверы</b><span id="count" class="badge"></span>
+      <span class="spacer"></span>
+      <button id="ping" class="btn small" title="Проверить задержку всех серверов">Пинг</button>
+      <button id="refresh" class="icon-btn small" title="Обновить подписки и список блокировок" aria-label="Обновить подписки и список блокировок">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+      </button>
+    </div>
+    <input id="search" type="search" placeholder="Поиск сервера" aria-label="Поиск сервера" hidden>
+    <ul id="list" role="listbox" aria-label="Серверы"></ul>
+  </section>
+</div>
+
+<div id="settingsView" hidden>
+  <div class="scroll">
+    <section class="card">
+      <h3>Подключение</h3>
+      <label class="field">Secret
+        <span class="pw"><input id="secret" type="password" autocomplete="off" spellcheck="false">
+          <button id="showSecret" class="icon-btn small" type="button" aria-label="Показать secret" title="Показать">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button></span>
+        <span class="hint">Выдаёт установщик. Он же лежит в %LOCALAPPDATA%\Lazeyka\core\config.yaml</span>
+      </label>
+      <label class="field">Подписки <span class="hint">— по одной ссылке на строку</span>
+        <textarea id="subs" rows="3" placeholder="https://panel.example.com/sub/xxxx" spellcheck="false"></textarea>
+      </label>
+      <label class="check"><input type="checkbox" id="subViaVpn"><span>Качать подписки через VPN<span class="hint">Если сайт панели заблокирован в этой сети. Работает, когда серверы уже загружены.</span></span></label>
+    </section>
+
+    <section class="card">
+      <h3>Какие сайты через VPN</h3>
+      <div class="field">Остальные сайты
+        <div class="seg" id="restSeg" role="radiogroup" aria-label="Остальные сайты">
+          <button data-v="vpn" role="radio">Через VPN</button>
+          <button data-v="direct" role="radio">Напрямую</button>
+        </div>
+      </div>
+      <label class="check"><input type="checkbox" id="ruDirect"><span>Российские сайты напрямую<span class="hint">.ru, .рф, .su, Яндекс, VK, Сбер — банки и Госуслуги не ругаются на зарубежный IP</span></span></label>
+      <label class="check"><input type="checkbox" id="useBlocked"><span>Заблокированное в РФ — через VPN<span class="hint" id="blockedInfo"></span></span></label>
+      <label class="check"><input type="checkbox" id="webrtc"><span>Защита от утечки IP через WebRTC<span class="hint">Звонки в браузере пойдут по TCP</span></span></label>
+      <label class="field">Всегда через VPN <span class="hint">— домен покрывает поддомены</span>
+        <textarea id="vpnList" rows="3" placeholder="youtube.com&#10;chatgpt.com" spellcheck="false"></textarea>
+      </label>
+      <label class="field">Всегда напрямую
+        <textarea id="directList" rows="3" placeholder="gosuslugi.ru&#10;work-portal.com" spellcheck="false"></textarea>
+      </label>
+      <div class="field">Свои серверы для сайтов
+        <ul id="bindings" class="bindings"></ul>
+        <span class="hint" id="noBindings">Пока нет. Выбираются в карточке открытого сайта на главном экране.</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>Перенос на другой компьютер</h3>
+      <p class="hint">Строка содержит ссылки на подписки — никому её не показывай. Secret не переносится: он свой на каждом компьютере.</p>
+      <button id="export" class="btn wide">Скопировать строку настроек</button>
+      <div class="import"><input id="importStr" placeholder="Вставь строку LZK1:…" aria-label="Строка настроек" spellcheck="false"><button id="import" class="btn">Импорт</button></div>
+    </section>
+
+    <section class="card">
+      <h3>Горячая клавиша</h3>
+      <div class="field-row"><span>Вкл/выкл: <kbd id="hotkey">не задана</kbd></span><button id="shortcuts" class="btn small">Изменить</button></div>
+    </section>
+    <div class="version" id="version"></div>
+  </div>
+  <footer class="footer">
+    <button id="back" class="btn ghost">Назад</button>
+    <button id="save" class="btn primary">Сохранить</button>
+  </footer>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script type="module" src="popup.js"></script>
 </body>
 </html>
