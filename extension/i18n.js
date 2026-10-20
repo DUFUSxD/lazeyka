@@ -136,6 +136,7 @@ export const EN = {
   'Администратор этого компьютера запретил расширениям менять прокси.': 'The administrator of this computer doesn’t allow extensions to change the proxy.',
   'Команда скопирована: Win+R → вставить → Enter': 'Command copied: Win+R → paste → Enter',
   'Ядро ещё не установлено.': 'The core is not installed yet.',
+  'Ядро не ответило вовремя — попробуй ещё раз': 'The core didn’t respond in time — try again',
   'Лазейке нужна программа-ядро на компьютере. Нажми «Запустить ядро»; если ядро ещё не установлено — Win+R, вставь команду ниже и Enter.':
     'Lazeyka needs a core program on this computer. Press “Start core”; if the core isn’t installed yet — Win+R, paste the command below and press Enter.',
   'Установлена {0} · обновляется через магазин': 'Installed {0} · updated by the store',
