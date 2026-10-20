@@ -139,7 +139,11 @@ async function setup() {
 chrome.storage.onChanged.addListener((ch, area) => { if (area === 'local' && ch.updateEvery) scheduleUpdates(false); });
 chrome.runtime.onInstalled.addListener(async (d) => {
   // новая версия могла поменять правила сайтов или конфиг ядра — применить сразу, а не при следующем включении
-  if ((await proxyState()).on) await applyProxy(await load()).catch(() => {});
+  await ensureHwid();
+  const s = await load();
+  if ((await proxyState()).on) await applyProxy(s).catch(() => {});
+  // ядро держит конфиг прошлой версии, пока его не перезапустят, — перезалить (ядро не запущено — догонит ensureConfig)
+  if (d.reason === 'update' && s.secret && s.subs.length) await pushConfig(s).catch(() => {});
   setup();
   if (d.reason === 'update' && d.previousVersion !== VERSION) {
     notify('lzk-upd', `Лазейка обновлена до ${VERSION}`, 'Всё готово, настройки на месте.');
