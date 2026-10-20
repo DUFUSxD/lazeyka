@@ -153,7 +153,9 @@ export async function pushConfig(s) {
   });
   // после перезагрузки select-группы сайтов стоят на REJECT; сервера нет в подписке — так и останется (popup предупредит)
   await Promise.all(siteGroups(s).map((n, i) => select(`SITE${i}`, n, s.secret).catch(() => {})));
-  // свежий url-test кэширует выбор REJECT на 10 с; тест группы сбрасывает кэш и сразу находит живой сервер
+  // Свежий url-test 10 с держит закэшированный выбор, и при фоновом трафике это REJECT (сайты блокируются).
+  // Тест группы сбрасывает кэш: первый наполняет историю задержек, второй — уже при известных живых серверах.
+  await testGroup(AUTO, s.secret);
   await testGroup(AUTO, s.secret);
 }
 

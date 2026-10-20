@@ -128,6 +128,18 @@ try {
   await api('/providers/proxies/sub2', secret, { method: 'PUT' });
   assert.ok(hits > before, 'refresh перекачивает подписку');
 
+  // перезаливка под фоновым трафиком (как смена сервера для сайта во время сёрфинга):
+  // «Авто» не должен залипать на закэшированном REJECT
+  await selectServer(AUTO, secret);
+  let browsing = true;
+  const traffic = (async () => { while (browsing) { await viaCore(`http://t${Math.random().toString(36).slice(2, 6)}.lzk/`); await sleep(50); } })();
+  await pushConfig({ ...s, siteServers: { ...s.siteServers, 'y.lzk': '1| A' } });
+  const autoNow = (await api(`/proxies/${AUTO}`, secret)).now;
+  browsing = false;
+  await traffic;
+  assert.match(autoNow, /^1\| [AB]$/, 'Авто сразу после перезаливки под трафиком');
+  await selectServer('1| A', secret);
+
   // рестарт ядра: payload теряется, ensureConfig заливает заново, выборы восстанавливаются
   p.kill(); await new Promise((r) => p.once('exit', r));
   p = start(); await waitApi();
