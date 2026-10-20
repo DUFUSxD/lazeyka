@@ -11,17 +11,19 @@ if (-not (Test-Path $exe)) {
     Write-Host 'Скачиваю mihomo с github.com/MetaCubeX/mihomo...'
     $ProgressPreference = 'SilentlyContinue'  # в PS 5.1 прогресс-бар замедляет загрузку в разы
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12  # старые Win10
-    # compatible — сборка без требований к AVX2, пойдёт на любом x64
-    $asset = try {
-        (Invoke-RestMethod 'https://api.github.com/repos/MetaCubeX/mihomo/releases/latest').assets |
-            Where-Object name -match '^mihomo-windows-amd64-compatible-v\d+\.\d+\.\d+\.zip$' | Select-Object -First 1
-    } catch { $null }
-    if (-not $asset) {
+    # compatible — сборка без требований к AVX2, пойдёт на любом x64. Номер версии — из перенаправления
+    # releases/latest → releases/tag/vX.Y.Z, а не из API GitHub: у API лимит 60 запросов в час на IP.
+    $tag = try {
+        $r = Invoke-WebRequest 'https://github.com/MetaCubeX/mihomo/releases/latest' -UseBasicParsing
+        $u = $r.BaseResponse.ResponseUri; if (-not $u) { $u = $r.BaseResponse.RequestMessage.RequestUri } # PowerShell 5.1 / 7
+        "$u" -replace '.*/tag/', ''
+    } catch { '' }
+    if ($tag -notmatch '^v\d+\.\d+\.\d+$') {
         throw "Не удалось скачать mihomo. Скачай mihomo-windows-amd64-compatible-*.zip с github.com/MetaCubeX/mihomo/releases, распакуй и положи exe сюда как $exe"
     }
     $zip = Join-Path $dir 'mihomo.zip'
     $tmp = Join-Path $dir 'tmp'
-    Invoke-WebRequest $asset.browser_download_url -OutFile $zip -UseBasicParsing
+    Invoke-WebRequest "https://github.com/MetaCubeX/mihomo/releases/download/$tag/mihomo-windows-amd64-compatible-$tag.zip" -OutFile $zip -UseBasicParsing
     Expand-Archive $zip $tmp -Force
     Move-Item (Get-ChildItem $tmp -Filter *.exe | Select-Object -First 1).FullName $exe
     Remove-Item $zip, $tmp -Recurse -Force

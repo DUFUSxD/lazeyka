@@ -34,14 +34,14 @@ asset_prefix() {
 download_core() {
     say 'Скачиваю mihomo с github.com/MetaCubeX/mihomo...'
     prefix=$(asset_prefix)
-    url=$(curl -fsSL https://api.github.com/repos/MetaCubeX/mihomo/releases/latest |
-        grep -o '"browser_download_url": *"[^"]*"' | sed 's/.*"\(https:[^"]*\)"$/\1/' |
-        grep "/${prefix}[0-9][0-9.]*\.gz\$" | head -n 1) || true
-    if [ -z "$url" ]; then
-        say "Не удалось найти mihomo. Скачай ${prefix}*.gz с github.com/MetaCubeX/mihomo/releases, распакуй и положи как $exe" >&2
-        return 1
-    fi
-    curl -fsSL "$url" | gunzip > "$exe.tmp"
+    # номер последней версии — из перенаправления releases/latest → releases/tag/vX.Y.Z, а не из API GitHub:
+    # у API лимит 60 запросов в час на IP, и за общим адресом (офис, оператор) он кончается
+    tag=$(curl -fsSLI -o /dev/null -w '%{url_effective}' https://github.com/MetaCubeX/mihomo/releases/latest | sed 's#.*/tag/##') || tag=''
+    case "$tag" in
+        v[0-9]*) ;;
+        *) say "Не удалось узнать версию mihomo. Скачай ${prefix}*.gz с github.com/MetaCubeX/mihomo/releases, распакуй и положи как $exe" >&2; return 1 ;;
+    esac
+    curl -fsSL "https://github.com/MetaCubeX/mihomo/releases/download/$tag/$prefix${tag#v}.gz" | gunzip > "$exe.tmp"
     chmod +x "$exe.tmp"
     mv "$exe.tmp" "$exe"
 }

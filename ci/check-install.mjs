@@ -5,8 +5,8 @@
 // --load-extension, официальная замена — команда Extensions.loadUnpacked.
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { homedir, platform } from 'node:os';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
+import { homedir, platform, tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const os = platform();
@@ -40,13 +40,14 @@ const chrome = {
   darwin: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   linux: 'google-chrome',
 }[os];
-// профиль по умолчанию, как у пользователя: без --user-data-dir headless Chrome берёт временный, а на Linux
-// папку помощников (NativeMessagingHosts) Chrome ищет внутри профиля
-const profile = {
-  win32: join(process.env.LOCALAPPDATA ?? '', 'Google', 'Chrome', 'User Data'),
-  darwin: join(homedir(), 'Library', 'Application Support', 'Google', 'Chrome'),
-  linux: join(homedir(), '.config', 'google-chrome'),
-}[os];
+// Отладка в профиле по умолчанию запрещена (Chrome 136+), а на macOS и Linux папку помощников (NativeMessagingHosts)
+// Chrome ищет внутри профиля. Поэтому профиль временный, и в него кладётся ровно тот файл, что записал установщик:
+// проверяются его содержимое (путь к host.sh, ID), а место для обычного профиля — по документации Chrome.
+const profile = mkdtempSync(join(tmpdir(), 'lzk-chrome-'));
+if (os !== 'win32') {
+  mkdirSync(join(profile, 'NativeMessagingHosts'));
+  copyFileSync(hostJson, join(profile, 'NativeMessagingHosts', 'com.lazeyka.host.json'));
+}
 // помощник напрямую, тем же кадром, что шлёт Chrome: отделяет поломку помощника от поломки регистрации
 if (os !== 'win32') { // на Windows path — host.bat относительно host.json, его проверяет только Chrome
   const direct = spawnSync(host.path, { input: Buffer.concat([Buffer.from([16, 0, 0, 0]), Buffer.from('{"cmd":"ping"}  ')]) });

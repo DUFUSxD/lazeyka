@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/DUFUSxD/lazeyka/releases/latest"><img src="https://img.shields.io/github/v/release/DUFUSxD/lazeyka?label=release&color=2fb36b" alt="Latest release"></a>
-  <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078d4" alt="Windows 10 and 11">
+  <img src="https://img.shields.io/badge/Windows%20%7C%20macOS%20%7C%20Linux-0078d4" alt="Windows, macOS and Linux">
   <img src="https://img.shields.io/badge/Chrome%20%7C%20Edge%20%7C%20Yandex-Manifest%20V3-4285f4" alt="Chrome, Edge, Yandex Browser">
   <img src="https://img.shields.io/badge/VLESS%20Reality%20%7C%20Hysteria2%20%7C%20Trojan-mihomo-8a63d2" alt="VLESS, Reality, Hysteria2, Trojan on the mihomo core">
   <a href="LICENSE"><img src="https://img.shields.io/github/license/DUFUSxD/lazeyka?color=blue" alt="MIT license"></a>
@@ -12,9 +12,9 @@
 
 # Lazeyka
 
-**A VPN for your browser only — through your own servers.** Paste your subscription link, press the big green button, and websites open through your VPN. Everything else on the computer (games, messengers, Windows updates) keeps working directly, as usual.
+**A VPN for your browser only — through your own servers.** Paste your subscription link, press the big green button, and websites open through your VPN. Everything else on the computer (games, messengers, system updates) keeps working directly, as usual.
 
-Works on **Windows 10 and 11** in **Google Chrome**, **Microsoft Edge**, **Yandex Browser** and other Chromium-based browsers. Free and open source. *Lazeyka* is Russian for “a loophole”.
+Works on **Windows 10 and 11**, **macOS** and **Linux** in **Google Chrome**, **Microsoft Edge**, **Brave**, **Yandex Browser** and other Chromium-based browsers. Free and open source, no admin rights needed. *Lazeyka* is Russian for “a loophole”.
 
 <p align="center"><img src="docs/images/demo-en.gif" alt="Turn on, collapse a subscription, pick a server, open settings" width="420"></p>
 
@@ -60,8 +60,8 @@ If you need games, Telegram or torrents to go through the VPN, you want a whole-
 
 ## What you need
 
-1. A Windows 10 or 11 computer.
-2. Chrome, Edge or Yandex Browser.
+1. A Windows 10/11, macOS or Linux computer.
+2. A Chromium-based browser: Chrome, Edge, Brave or Yandex Browser. Firefox and Safari won't work.
 3. **A subscription link.**
    <details>
    <summary>Where to get it and what it looks like</summary>
@@ -76,6 +76,8 @@ If you need games, Telegram or torrents to go through the VPN, you want a whole-
 ## Install — 5 minutes
 
 ### Step 1. Install the core with one command
+
+**Windows**
 
 1. Press **Win + X** and choose **“Terminal”** (on older Windows 10 — **“Windows PowerShell”**).
 2. Copy the command (hover over it — a copy button appears on the right):
@@ -95,17 +97,33 @@ If you need games, Telegram or torrents to go through the VPN, you want a whole-
 - generated a random secret — the password the extension uses to control the core — and copied it to the clipboard;
 - started the core in the background and added it to startup, so it runs with Windows.
 
+Everything is per-user — no admin rights needed.
 </details>
+
+**macOS and Linux**
+
+1. Open a terminal: on macOS — **Cmd + Space**, type “Terminal”, press Enter; on Linux — usually **Ctrl + Alt + T**.
+2. Paste the command and press **Enter**:
+   ```sh
+   curl -fsSL https://raw.githubusercontent.com/DUFUSxD/lazeyka/main/install.sh | sh
+   ```
+3. In half a minute you'll see **«Готово»** (“Done”) and the secret. On macOS it's already in the clipboard; on Linux too if `wl-copy` or `xclip` is installed — otherwise copy it from the terminal window.
+
+Lazeyka goes to `~/Lazeyka`, the core starts by itself when you log in (macOS — LaunchAgent, Linux — `systemd --user`). No admin rights needed.
 
 ### Step 2. Add the extension to your browser
 
 1. Open the extensions page — paste into the address bar and press Enter:
    - Chrome: `chrome://extensions`
    - Edge: `edge://extensions`
+   - Brave: `brave://extensions`
    - Yandex Browser: `browser://extensions`
 2. Turn on **“Developer mode”** (Chrome — top right, Edge — bottom left).
 3. Click **“Load unpacked”**.
-4. Pick the `extension` folder. The easiest way: in the folder dialog paste `%LOCALAPPDATA%\Lazeyka\extension` into the address bar, press Enter, then **“Select Folder”**.
+4. Pick the `extension` folder. The easiest way is to paste the path right in the folder dialog:
+   - Windows: paste `%LOCALAPPDATA%\Lazeyka\extension` into the dialog's address bar, press Enter, then **“Select Folder”**;
+   - macOS: **Cmd + Shift + G** → `~/Lazeyka/extension` → Enter → **“Select”**;
+   - Linux: **Ctrl + L** → `~/Lazeyka/extension` → Enter → **“Open”**.
 
 <p align="center"><img src="docs/images/extensions-page-en.png" alt="Edge extensions page: turn on developer mode and click “Load unpacked”" width="760"></p>
 
@@ -122,7 +140,7 @@ If you need games, Telegram or torrents to go through the VPN, you want a whole-
 2. Click the **Secret** field and press **Ctrl + V**.
    <details><summary>Clipboard has something else?</summary>
 
-   Open `%LOCALAPPDATA%\Lazeyka\core\config.yaml` in Notepad (paste this path into Explorer's address bar) and copy the value after `secret:` — without quotes.
+   Open `%LOCALAPPDATA%\Lazeyka\core\config.yaml` in Notepad (paste this path into Explorer's address bar) and copy the value after `secret:` — without quotes. On macOS and Linux the file is `~/Lazeyka/core/config.yaml`.
    </details>
 3. In **Subscriptions** paste your `https://…` link. Several subscriptions — one per line. You can put a name before the link, e.g. `My VPN https://…` — it will show in the server list.
 4. Click **“Save”** — the server list appears.
@@ -146,7 +164,7 @@ The interface language follows your browser; switch it in ⚙ → **“Language 
 - **The big button** turns it on or off. Same with **Alt + Shift + L**.
 - **Below the button** you see the current server and its latency, and when it's on — the speed and the total traffic through the VPN since the core started (“direct” sites aren't counted).
 - **The toolbar icon:** green — on, grey — off, red “!” — something's wrong; open Lazeyka to see what to do.
-- Light or dark theme follows Windows.
+- Light or dark theme follows your system.
 
 ### Choosing a server
 
@@ -154,7 +172,7 @@ The interface language follows your browser; switch it in ⚙ → **“Language 
 - Click a specific server to use it instead.
 - Numbers on the right are latency in milliseconds: green — great, yellow — fine, red — slow; “no response” — the server is down right now.
 - **“Ping”** re-checks all servers. **⟳** updates subscriptions.
-- **Servers are grouped by subscription.** Each has a logo, a name and, below it, used traffic and the expiry date if the panel reports them. When traffic is almost out or the subscription is about to expire, the line turns orange and Windows shows a notification: 3 days before, on the day, and at 90% traffic.
+- **Servers are grouped by subscription.** Each has a logo, a name and, below it, used traffic and the expiry date if the panel reports them. When traffic is almost out or the subscription is about to expire, the line turns orange and the system shows a notification: 3 days before, on the day, and at 90% traffic.
 - **Search** (shown with nine or more servers) understands countries in English and Russian: “Britain”, “England”, “UK” or “London” find “🇬🇧 London”, “UK-1” and “United Kingdom” alike. Same for “USA”, “Germany”, “Holland” and major cities.
 - **Collapse a subscription** by clicking its header or the arrow on the right; Lazeyka remembers it.
 - **Speed test.** Hover over a server and click **⇣** — Lazeyka downloads a test file through that server and shows Mbit/s without switching your current server. Works while Lazeyka is on and uses up to 25 MB of your subscription traffic.
@@ -283,7 +301,7 @@ Yes, that's exactly what Lazeyka is for. Browsers can't speak VLESS — extensio
 <details>
 <summary><b>Why not just use v2rayN, Hiddify or Happ on my PC?</b></summary>
 
-With Lazeyka only the browser goes through the VPN. Games, Steam, torrents, Windows updates and work apps stay direct and don't eat your subscription traffic, and you can pick a server per site.
+With Lazeyka only the browser goes through the VPN. Games, Steam, torrents, system updates and work apps stay direct and don't eat your subscription traffic, and you can pick a server per site.
 </details>
 
 <details>
@@ -307,7 +325,15 @@ Nowhere: they stay in your browser and in the core on your computer. Lazeyka has
 <details>
 <summary><b>Is there a version for Mac, Linux, Firefox or phones?</b></summary>
 
-Not yet — Windows 10/11 and Chromium browsers only. The mihomo core runs elsewhere too; if you'd like to help with a port, open an [issue](https://github.com/DUFUSxD/lazeyka/issues).
+**macOS and Linux** — yes, with their own install command (see [step 1](#step-1-install-the-core-with-one-command)). **Firefox and Safari** — no: Lazeyka works in Chromium-based browsers.
+
+**Phones** — not as an extension: mobile browsers don't let extensions control the proxy. On a phone, use free apps on the same mihomo core, such as FlClash or Clash Meta for Android; FlClash lets you choose which apps go through the VPN and keep just the browser.
+</details>
+
+<details>
+<summary><b>Do I need admin rights?</b></summary>
+
+No. Everything is installed for your user only: files go to your personal folder, autostart to your user settings. The core only accepts connections from the same computer (127.0.0.1), so the firewall doesn't ask anything.
 </details>
 
 <details>
@@ -322,9 +348,9 @@ It's in the works. Even then the core has to be installed once with the command 
 <td width="300" valign="top"><img src="docs/images/core-alert-en.png" alt="The core is not running — “Start core” button"></td>
 <td valign="top">
 
-**“The mihomo core is not running”.** Click **“Start core”**. Didn't help — click **“Copy command”**, then **Win + R**, **Ctrl + V**, **Enter**. Or just restart the computer — the core is in startup.
+**“The mihomo core is not running”.** Click **“Start core”**. Didn't help — click **“Copy command”**, then **Win + R**, **Ctrl + V**, **Enter** (on macOS and Linux — paste it into a terminal). Or just restart the computer — the core is in startup.
 
-**“Wrong secret”.** Open `%LOCALAPPDATA%\Lazeyka\core\config.yaml` in Notepad and copy the value after `secret:` (without quotes) into Lazeyka's settings.
+**“Wrong secret”.** Open `%LOCALAPPDATA%\Lazeyka\core\config.yaml` in Notepad (on macOS and Linux — `~/Lazeyka/core/config.yaml`) and copy the value after `secret:` (without quotes) into Lazeyka's settings.
 
 **A subscription with a red “⚠ …” instead of servers.** It didn't download; the banner says why. If the subscription site is blocked on your network, Lazeyka downloads it through the servers of your other subscriptions (“via VPN” appears next to it). If there are no other working servers yet, click **“Download via VPN”** once they appear.
 
@@ -343,6 +369,7 @@ It's in the works. Even then the core has to be installed once with the command 
 | Browser calls (video calls) sound choppy | ⚙ → untick “WebRTC IP leak protection”. |
 | Red text “irm is not recognized…” during install | The command went into “Command Prompt”; you need “Terminal” / PowerShell — see [step 1](#step-1-install-the-core-with-one-command). |
 | Error downloading mihomo during install | GitHub is unreachable from this network. On another computer download `mihomo-windows-amd64-compatible-….zip` from the [releases page](https://github.com/MetaCubeX/mihomo/releases), unpack it and put the file at `%LOCALAPPDATA%\Lazeyka\core\mihomo.exe`, then run the command again. |
+| Linux: “Update” and “Start core” do nothing | Most likely a Snap or Flatpak browser (e.g. the default Chromium on Ubuntu): such browsers can't start the external helper. The VPN works; run the commands from the window in a terminal — or install Chrome, Brave or Edge from a .deb / .rpm. |
 | Antivirus complains about `mihomo.exe` | Some antiviruses distrust any proxy program. mihomo is open source and downloaded from its official GitHub. Restore it from quarantine or reinstall. |
 
 Still stuck — open an [issue](https://github.com/DUFUSxD/lazeyka/issues) (a screenshot of the Lazeyka window helps a lot) or ask in [Discussions](https://github.com/DUFUSxD/lazeyka/discussions).
@@ -350,12 +377,29 @@ Still stuck — open an [issue](https://github.com/DUFUSxD/lazeyka/issues) (a sc
 ## Uninstall
 
 1. On the extensions page click **“Remove”** for Lazeyka. The browser restores its normal network settings right away.
-2. Open **Terminal** (Win + X) and run:
+2. Remove the core and the helper.
+
+   **Windows** — open **Terminal** (Win + X) and run:
    ```powershell
    Get-Process mihomo -ErrorAction SilentlyContinue | Where-Object Path -like "$env:LOCALAPPDATA\Lazeyka\*" | Stop-Process -Force
    Remove-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Run LazeykaMihomo -ErrorAction SilentlyContinue
    'Google\Chrome', 'Microsoft\Edge', 'Chromium', 'Yandex\YandexBrowser', 'BraveSoftware\Brave-Browser' | ForEach-Object { Remove-Item "HKCU:\Software\$_\NativeMessagingHosts\com.lazeyka.host" -ErrorAction SilentlyContinue }
    Remove-Item "$env:LOCALAPPDATA\Lazeyka" -Recurse -Force
+   ```
+
+   **macOS** — in Terminal:
+   ```sh
+   launchctl bootout "gui/$(id -u)/com.lazeyka.mihomo" 2>/dev/null; rm -f ~/Library/LaunchAgents/com.lazeyka.mihomo.plist
+   rm -f ~/Library/Application\ Support/*/NativeMessagingHosts/com.lazeyka.host.json ~/Library/Application\ Support/*/*/NativeMessagingHosts/com.lazeyka.host.json
+   rm -rf ~/Lazeyka
+   ```
+
+   **Linux** — in a terminal:
+   ```sh
+   systemctl --user disable --now lazeyka-mihomo 2>/dev/null; pkill -f Lazeyka/core/mihomo
+   rm -f ~/.config/systemd/user/lazeyka-mihomo.service ~/.config/autostart/lazeyka-mihomo.desktop
+   rm -f ~/.config/*/NativeMessagingHosts/com.lazeyka.host.json ~/.config/*/*/NativeMessagingHosts/com.lazeyka.host.json
+   rm -rf ~/Lazeyka
    ```
 
 ## Security and privacy
