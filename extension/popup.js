@@ -124,9 +124,16 @@ async function run(fn) {
   }
 }
 
+// loading — крутилка на кнопке (popup.css): видно, что действие идёт, а не зависло
 async function busy(btn, fn) {
   btn.disabled = true;
-  try { await fn(); } finally { btn.disabled = false; }
+  btn.classList.add('loading');
+  btn.setAttribute('aria-busy', 'true');
+  try { await fn(); } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    btn.removeAttribute('aria-busy');
+  }
 }
 
 // --- главный экран
@@ -300,7 +307,7 @@ let speedNow = null;      // сервер, который меряем сейч�
 const mbit = (v) => t('{0} Мбит/с', v < 10 ? v.toFixed(1) : Math.round(v));
 function speedButton(n) {
   const v = speeds.get(n);
-  const b = el('button', `spd${v !== undefined ? ' has' : ''}${speedNow === n ? ' busy' : ''}`, speedNow === n ? '…' : v === undefined ? '⇣' : mbit(v));
+  const b = el('button', `spd${v !== undefined ? ' has' : ''}${speedNow === n ? ' busy loading' : ''}`, speedNow === n ? '' : v === undefined ? '⇣' : mbit(v));
   b.title = t('Тест скорости: скачать до 25 МБ через этот сервер (расходует трафик подписки)');
   b.setAttribute('aria-label', t('Тест скорости: {0}', plainName(n)));
   b.disabled = !!speedNow;
@@ -545,10 +552,7 @@ $('siteServer').onchange = () => run(() => busy($('siteServer'), async () => {
   await saveSite(true);
 }));
 
-$('ping').onclick = () => run(() => busy($('ping'), async () => {
-  $('ping').textContent = '…';
-  try { await testGroup(GROUP, s.secret); await refreshHealth(); } finally { $('ping').textContent = t('Пинг'); }
-}));
+$('ping').onclick = () => run(() => busy($('ping'), async () => { await testGroup(GROUP, s.secret); await refreshHealth(); }));
 
 $('refresh').onclick = () => run(() => busy($('refresh'), async () => {
   toast(t('Обновляю подписки и списки…'));
