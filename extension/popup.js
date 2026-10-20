@@ -40,11 +40,11 @@ const site = norm(tabHost);
 // --- мелочи интерфейса
 let toastTimer;
 function toast(text, kind = '') {
-  const t = $('toast');
-  t.textContent = text;
-  t.className = `toast show ${kind}`;
+  const bar = $('toast');
+  bar.textContent = text;
+  bar.className = `toast show ${kind}`;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.className = 'toast'; }, kind === 'err' ? 5000 : 2500);
+  toastTimer = setTimeout(() => { bar.className = 'toast'; }, kind === 'err' ? 5000 : 2500);
 }
 
 const ALERTS = {
@@ -712,7 +712,9 @@ $('export').onclick = () => run(async () => {
 });
 
 $('import').onclick = () => run(() => busy($('import'), async () => {
+  const wasLang = s.lang;
   await apply({ ...s, ...importSettings($('importStr').value) });
+  if (s.lang !== wasLang) return location.reload(); // в строке был другой язык — перерисовать окно
   $('importStr').value = '';
   fillSettings();
   toast(t(s.secret ? 'Настройки импортированы ✓' : 'Импортировано. Осталось вставить secret и сохранить'));
