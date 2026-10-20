@@ -84,6 +84,15 @@ export function parseSubs(text) {
 
 // Имя подписки: своё, от провайдера (profile-title) или домен панели.
 export const subName = (s, url) => s.subNames[url] || s.subMeta?.[url]?.title || new URL(url).hostname;
+// Где искать логотип подписки: favicon сайта кабинета (часто это основной сайт провайдера, а подписка — на техническом
+// домене), потом адреса подписки, потом их основных доменов. Только сайты самого провайдера — без сервисов иконок.
+export function iconUrls(urls) {
+  const hosts = urls.filter((u) => /^https?:\/\//.test(u ?? '')).map((u) => new URL(u));
+  const main = hosts.filter((u) => u.hostname.split('.').length > 2 && !/^[\d.]+$/.test(u.hostname))
+    .map((u) => `https://${u.hostname.split('.').slice(-2).join('.')}/favicon.ico`);
+  return [...new Set([...hosts.map((u) => `${u.origin}/favicon.ico`), ...main])];
+}
+
 // При нескольких подписках mihomo добавляет к именам серверов префикс «1| » — людям он не нужен.
 export const plainName = (n) => n.replace(/^\d+\| /, '');
 

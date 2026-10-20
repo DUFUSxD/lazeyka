@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import {
   buildConfig, buildRules, buildPac, decide, parseList, parseSubs, plainName, subName, subError, norm, exportSettings, importSettings, newer, changelogSince,
-  subStatus, sortServers, parseSubMeta, decodeText, migrateSub, deviceHeaders,
+  subStatus, sortServers, parseSubMeta, decodeText, migrateSub, deviceHeaders, iconUrls,
   DEFAULTS, GROUP, AUTO, PORT, SPEED, SPEED_HOST,
 } from './extension/lib.js';
 
@@ -107,6 +107,13 @@ assert.deepEqual(mig, { subs: ['https://n/s', 'https://k/s'], subNames: { 'https
 // своё название важнее названия от провайдера
 assert.equal(subName({ subNames: {}, subMeta: { 'https://a/s': { title: 'От провайдера' } } }, 'https://a/s'), 'От провайдера');
 assert.equal(subName({ subNames: { 'https://a/s': 'Своё' }, subMeta: { 'https://a/s': { title: 'От провайдера' } } }, 'https://a/s'), 'Своё');
+// логотип: сначала сайт кабинета, потом адрес подписки, потом основные домены; без кабинета — как раньше
+assert.deepEqual(iconUrls(['https://my.brand.com/cabinet', 'https://sub.brand-cdn.net/s/tok']), [
+  'https://my.brand.com/favicon.ico', 'https://sub.brand-cdn.net/favicon.ico', 'https://brand.com/favicon.ico', 'https://brand-cdn.net/favicon.ico']);
+assert.deepEqual(iconUrls([undefined, 'http://1.2.3.4:2096/sub/tok']), ['http://1.2.3.4:2096/favicon.ico']);
+assert.deepEqual(iconUrls(['https://brand.com/', 'https://sub.brand.com/s']), [
+  'https://brand.com/favicon.ico', 'https://sub.brand.com/favicon.ico'], 'без повторов');
+assert.deepEqual(iconUrls(['javascript:alert(1)', 'https://a.example/s']), ['https://a.example/favicon.ico']);
 
 // --- домены и подписки
 assert.equal(norm('https://www.YouTube.com/watch?v=1'), 'youtube.com');
