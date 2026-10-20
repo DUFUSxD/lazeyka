@@ -28,7 +28,7 @@
   "alternateName": "Лазейка",
   "description": "A browser-only VPN through your own VLESS/Reality, VMess, Trojan, Shadowsocks and Hysteria2 subscriptions on the mihomo core, with per-site rules.",
   "applicationCategory": "BrowserApplication",
-  "operatingSystem": "Windows 10, Windows 11",
+  "operatingSystem": "Windows 10, Windows 11, macOS, Linux",
   "url": "https://dufusxd.github.io/lazeyka/en/",
   "downloadUrl": "https://github.com/DUFUSxD/lazeyka",
   "license": "https://opensource.org/licenses/MIT",
@@ -45,7 +45,7 @@
     { "@type": "Question", "name": "Can I use a VLESS / Reality subscription right in the browser?",
       "acceptedAnswer": { "@type": "Answer", "text": "Yes. Browsers can't speak VLESS, so a small mihomo core runs next to the browser and the Lazeyka extension controls it. One command to install, everything else in the extension window." } },
     { "@type": "Question", "name": "Why not just use v2rayN, Hiddify or Happ on my PC?",
-      "acceptedAnswer": { "@type": "Answer", "text": "With Lazeyka only the browser goes through the VPN: games, torrents, Windows updates and work apps stay direct and don't use your subscription traffic, and you can pick a server per site." } },
+      "acceptedAnswer": { "@type": "Answer", "text": "With Lazeyka only the browser goes through the VPN: games, torrents, system updates and work apps stay direct and don't use your subscription traffic, and you can pick a server per site." } },
     { "@type": "Question", "name": "Will my Remnawave / 3x-ui / Marzban subscription work?",
       "acceptedAnswer": { "@type": "Answer", "text": "Yes — any https:// subscription link in Clash/mihomo or base64 format. With a device limit, Lazeyka counts as a separate device." } },
     { "@type": "Question", "name": "Is it free?",
@@ -75,12 +75,12 @@
   <div class="wrap hero">
     <div>
       <h1>A VPN for your browser only — <span>with your own subscriptions</span></h1>
-      <p class="lead">Paste your VLESS, Reality or Hysteria2 subscription link, press the big green button, and websites open through your VPN. Games, messengers and Windows updates keep working directly, as usual.</p>
+      <p class="lead">Paste your VLESS, Reality or Hysteria2 subscription link, press the big green button, and websites open through your VPN. Games, messengers and system updates keep working directly, as usual.</p>
       <div class="cta">
         <a class="btn primary" href="#install">Install in 5 minutes</a>
         <a class="btn" href="https://github.com/DUFUSxD/lazeyka">★ GitHub</a>
       </div>
-      <p class="facts">Free · open source (MIT) · Windows 10 and 11 · Chrome, Edge, Yandex Browser</p>
+      <p class="facts">Free · open source (MIT) · Windows, macOS, Linux · Chrome, Edge, Brave, Yandex Browser</p>
     </div>
     <div class="shot"><img src="../images/demo-en.gif" width="420" height="723" alt="Lazeyka window: turning on, collapsing a subscription, picking a server, settings"></div>
   </div>
@@ -135,9 +135,11 @@
     <div class="wrap">
       <h2>Install — 5 minutes</h2>
       <ol class="steps">
-        <li><h3>Install the core with one command</h3><p>Press Win + X → “Terminal”, paste the command and press Enter. The installer talks in Russian — when you see the green «Готово» (“Done”), it's finished.</p>
-          <div class="cmd"><code id="cmd">irm https://raw.githubusercontent.com/DUFUSxD/lazeyka/main/install.ps1 | iex</code><button type="button" data-copy="cmd">Copy</button></div></li>
-        <li><h3>Add the extension to your browser</h3><p>On the extensions page turn on “Developer mode”, click “Load unpacked” and pick <code>%LOCALAPPDATA%\Lazeyka\extension</code>.</p></li>
+        <li><h3>Install the core with one command</h3><p>Windows: press Win + X → “Terminal”, paste the command and press Enter. The installer talks in Russian — when you see the green «Готово» (“Done”), it's finished. No admin rights needed.</p>
+          <div class="cmd"><code id="cmd">irm https://raw.githubusercontent.com/DUFUSxD/lazeyka/main/install.ps1 | iex</code><button type="button" data-copy="cmd">Copy</button></div>
+          <p>macOS and Linux: open a terminal (on a Mac — Cmd + Space → “Terminal”) and run:</p>
+          <div class="cmd"><code id="cmd-sh">curl -fsSL https://raw.githubusercontent.com/DUFUSxD/lazeyka/main/install.sh | sh</code><button type="button" data-copy="cmd-sh">Copy</button></div></li>
+        <li><h3>Add the extension to your browser</h3><p>On the extensions page turn on “Developer mode”, click “Load unpacked” and pick <code>%LOCALAPPDATA%\Lazeyka\extension</code> (on macOS and Linux — <code>~/Lazeyka/extension</code>).</p></li>
         <li><h3>Paste the secret and your subscription</h3><p>The secret is already in your clipboard after install. Paste it and your subscription link in settings, click “Save”, then the big button.</p></li>
       </ol>
       <p>Step-by-step guide with screenshots — <a href="https://github.com/DUFUSxD/lazeyka/blob/main/README.en.md#install--5-minutes">in the README on GitHub</a>.</p>
@@ -148,11 +150,12 @@
     <div class="wrap">
       <h2>FAQ</h2>
       <details><summary>Can I use a VLESS / Reality subscription right in the browser?</summary><p>Yes. Browsers can't speak VLESS — extensions only get HTTP and SOCKS proxies — so a small mihomo core runs next to the browser and Lazeyka controls it. One command to install, everything else in the extension window.</p></details>
-      <details><summary>Why not just use v2rayN, Hiddify or Happ on my PC?</summary><p>With Lazeyka only the browser goes through the VPN: games, torrents, Windows updates and work apps stay direct and don't eat your subscription traffic, and you can pick a server per site.</p></details>
+      <details><summary>Why not just use v2rayN, Hiddify or Happ on my PC?</summary><p>With Lazeyka only the browser goes through the VPN: games, torrents, system updates and work apps stay direct and don't eat your subscription traffic, and you can pick a server per site.</p></details>
       <details><summary>Will my Remnawave / 3x-ui / Marzban / Telegram-bot subscription work?</summary><p>Yes — any https:// subscription link in Clash/mihomo (YAML) format or as a base64 list of keys. With a device limit, Lazeyka counts as a separate device, like a phone.</p></details>
       <details><summary>Is it free?</summary><p>Yes, Lazeyka is free and open source (MIT). You only pay for your subscription to whoever provides it.</p></details>
       <details><summary>Where do my subscriptions go?</summary><p>Nowhere: they stay in your browser and in the core on your computer. Lazeyka has no servers, accounts or telemetry.</p></details>
-      <details><summary>Is there a Mac, Linux or mobile version?</summary><p>Not yet — Windows 10/11 and Chromium browsers only: Chrome, Edge, Yandex Browser, Brave.</p></details>
+      <details><summary>Is there a Mac, Linux or mobile version?</summary><p>macOS and Linux — yes, see the install command above. You need a Chromium browser: Chrome, Edge, Brave, Yandex Browser. On phones extensions can't control the proxy — use apps on the same mihomo core there, such as FlClash.</p></details>
+      <details><summary>Do I need admin rights?</summary><p>No. Everything is installed for your user only, and the core only accepts connections from the same computer.</p></details>
     </div>
   </section>
 

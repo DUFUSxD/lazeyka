@@ -46,7 +46,9 @@ export const SORT_OPTIONS = [['sub', 'как в подписке'], ['ping', 'п
 export const LANG_OPTIONS = [['auto', 'Как в браузере'], ['ru', 'Русский'], ['en', 'English']];
 
 // Панели с лимитом устройств (Remnawave и др.) без x-hwid отвечают 404. Значения — только ASCII.
-export const deviceHeaders = (hwid) => ({ 'x-hwid': hwid, 'x-device-os': 'Windows', 'x-device-model': 'Lazeyka' });
+// ОС видна провайдеру в списке устройств; не узнали (или Node в тестах) — Windows.
+const deviceOs = () => ({ macOS: 'macOS', Linux: 'Linux' })[globalThis.navigator?.userAgentData?.platform] ?? 'Windows';
+export const deviceHeaders = (hwid) => ({ 'x-hwid': hwid, 'x-device-os': deviceOs(), 'x-device-model': 'Lazeyka' });
 
 // Один идентификатор на компьютер: создаётся при первой нужде и дальше не меняется.
 export async function ensureHwid() {

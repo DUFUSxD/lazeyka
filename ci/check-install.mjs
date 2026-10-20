@@ -85,6 +85,10 @@ try {
   const sw = await until('service worker расширения', async () => (await send('Target.getTargets')).targetInfos
     .find((t) => t.type === 'service_worker' && t.url.startsWith(`chrome-extension://${id}/`)));
   const { sessionId } = await send('Target.attachToTarget', { targetId: sw.targetId, flatten: true });
+  // цель service worker видна раньше, чем выполнился его код (на macOS это заметно): ждём API расширения
+  await until('chrome.runtime в service worker', async () => (await send('Runtime.evaluate', {
+    expression: "typeof chrome === 'object' && typeof chrome.runtime?.connectNative === 'function'", returnByValue: true,
+  }, sessionId)).result?.value === true);
   const ask = async (cmd) => {
     const res = await send('Runtime.evaluate', { awaitPromise: true, returnByValue: true, expression: `new Promise((r) => {
       const p = chrome.runtime.connectNative('com.lazeyka.host');

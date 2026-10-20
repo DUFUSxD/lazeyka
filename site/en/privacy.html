@@ -28,7 +28,7 @@
   <h2>What is stored and where</h2>
   <ul>
     <li><b>Subscription links</b> and their names, your site lists, chosen servers and settings — in the extension's browser storage (<code>chrome.storage</code>).</li>
-    <li><b>The secret</b> — the password the extension uses to control the core — in the browser and in <code>%LOCALAPPDATA%\Lazeyka\core\config.yaml</code>.</li>
+    <li><b>The secret</b> — the password the extension uses to control the core — in the browser and in <code>%LOCALAPPDATA%\Lazeyka\core\config.yaml</code> (on macOS and Linux — <code>~/Lazeyka/core/config.yaml</code>).</li>
     <li><b>A device ID</b> — a random number generated on this computer (not tied to hardware or accounts) — in the extension's storage.</li>
     <li><b>Data from your subscription provider</b> (name, support and account links, announcements) — in the extension's storage, if you allowed fetching it.</li>
   </ul>
@@ -37,7 +37,7 @@
   <h2>What the extension connects to</h2>
   <ul>
     <li><b>The mihomo core on this computer</b> (<code>127.0.0.1</code>) — to pass it your subscriptions and rules and read server status.</li>
-    <li><b>Your subscription sites</b> (your provider's panels). The core downloads the subscription; the request carries the random device ID, “Windows” and “Lazeyka”, which panels with a device limit need. If you clicked “Allow”, the extension also requests the subscription itself to read the provider's name, links and announcements. Subscription logos load from the same sites.</li>
+    <li><b>Your subscription sites</b> (your provider's panels). The core downloads the subscription; the request carries the random device ID, the system name (Windows, macOS or Linux) and “Lazeyka”, which panels with a device limit need. If you clicked “Allow”, the extension also requests the subscription itself to read the provider's name, links and announcements. Subscription logos load from the same sites.</li>
     <li><b>GitHub</b> (<code>raw.githubusercontent.com</code>) — checking for a new version and the updated list of sites blocked in Russia. These requests carry none of your data. Update checks can be turned off.</li>
     <li><b>Cloudflare</b>: <code>cp.cloudflare.com</code> — checking whether servers are alive (through the servers themselves); <code>speed.cloudflare.com</code> — only when you press “Speed test”, always through the server being tested.</li>
   </ul>
