@@ -76,7 +76,9 @@ if (Test-Path (Join-Path $dir 'host.bat')) {
 
 if ($Autostart) {
     $cmd = "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$PSCommandPath`""
-    Set-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' LazeykaMihomo $cmd
+    $run = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+    if (-not (Test-Path $run)) { New-Item $run -Force | Out-Null } # на чистых системах (и в CI) ключа может не быть
+    Set-ItemProperty $run LazeykaMihomo $cmd
     Write-Host 'Добавлено в автозагрузку.'
 }
 
