@@ -3,9 +3,10 @@
 ## Что нужно
 
 - Windows 10/11, Windows PowerShell 5.1 (есть в системе) — скрипты должны работать именно в нём, не только в PowerShell 7.
+- Или macOS / Linux: `sh`, `curl`, `tar`, `gunzip`. Скрипты — POSIX sh без bash-измов: в Ubuntu и Debian `sh` — это dash.
 - Node.js 22+ — только для тестов, расширению сборка не нужна.
 - Chromium-браузер (Chrome, Edge).
-- `mihomo.exe` для сквозного теста: `mihomo-windows-amd64-compatible-*.zip` со [страницы релизов](https://github.com/MetaCubeX/mihomo/releases).
+- `mihomo.exe` для сквозного теста: `mihomo-windows-amd64-compatible-*.zip` со [страницы релизов](https://github.com/MetaCubeX/mihomo/releases) (на macOS/Linux — `mihomo-<система>-<архитектура>-*.gz` или уже скачанный установщиком `~/Lazeyka/core/mihomo`).
 
 ## Запуск из исходников
 
@@ -14,6 +15,8 @@
 ```powershell
 irm https://raw.githubusercontent.com/DUFUSxD/lazeyka/main/install.ps1 | iex
 ```
+
+На macOS и Linux — `curl -fsSL https://raw.githubusercontent.com/DUFUSxD/lazeyka/main/install.sh | sh`, всё ставится в `~/Lazeyka`. Из своей копии репозитория: `LAZEYKA_FROM=<папка> sh install.sh` (на Windows — `$env:LAZEYKA_FROM` перед `install.ps1`).
 
 Дальше правишь `%LOCALAPPDATA%\Lazeyka\extension\*` и жмёшь ⟳ на карточке Лазейки в `chrome://extensions`. Кнопки «Обновить» и «Запустить ядро» работают, потому что расширение загружено из папки, под которую прописан помощник.
 
@@ -51,9 +54,19 @@ node e2e.mjs C:\path\to\mihomo.exe    # ~20 с, нужен интернет
 
 > exe нельзя запускать из папки с путём длиннее 260 символов (MAX_PATH) — клади `mihomo.exe` во что-нибудь короткое вроде `C:\tmp\`.
 
+### CI на трёх системах
+
+`.github/workflows/test.yml` («Проверки») идёт на каждый PR и push в `main` на Windows, macOS и Linux:
+1. `node test.mjs`;
+2. установка из проверяемой ветки: `LAZEYKA_FROM=$PWD sh install.sh`, на Windows — `Get-Content -Raw -Encoding UTF8 install.ps1 | Invoke-Expression` (так же, как `irm | iex` у пользователей);
+3. `node ci/check-install.mjs`: ядро отвечает; настоящий Chrome загружает расширение из папки установки (`Extensions.loadUnpacked` по протоколу отладки); его ID есть в `allowed_origins` помощника; `ping` и `start` через native messaging из service worker отвечают как надо;
+4. ядро останавливается, `node e2e.mjs` идёт на только что установленном mihomo.
+
+Почему Chrome управляется так, а не флагами — в [decisions.md](decisions.md#проверка-на-настоящем-chrome-в-ci).
+
 ### Что тестами не покрыто
 
-Окно расширения, помощник и обновление проверялись вручную через Edge + DevTools Protocol (`--remote-debugging-port`). Для данных провайдера в тестовую копию `manifest.json` добавляют `http://127.0.0.1/*` в `host_permissions` (диалог разрешения по CDP не нажать), а фейковая панель отдаёт заголовки только `User-Agent: clash.meta/…` — так видно, что подмена UA работает, а обычная вкладка получает HTML. Если меняешь `host.ps1`, `mihomo.ps1` или поток обновления — прогони руками сценарий из [release.md](release.md#проверка-обновления-перед-выпуском).
+Окно расширения и обновление проверялись вручную (у помощника CI проверяет `ping` и `start`, но не `update`) через Edge + DevTools Protocol (`--remote-debugging-port`). Для данных провайдера в тестовую копию `manifest.json` добавляют `http://127.0.0.1/*` в `host_permissions` (диалог разрешения по CDP не нажать), а фейковая панель отдаёт заголовки только `User-Agent: clash.meta/…` — так видно, что подмена UA работает, а обычная вкладка получает HTML. Не проверить в CI и автозапуск после перезагрузки (launchd, systemd, ключ Run), и диалог выбора папки. Если меняешь помощника, `mihomo.ps1`/`mihomo.sh` или поток обновления — прогони руками сценарий из [release.md](release.md#проверка-обновления-перед-выпуском).
 
 ## Как устроен код
 
@@ -88,14 +101,15 @@ node e2e.mjs C:\path\to\mihomo.exe    # ~20 с, нужен интернет
 
 **Изменить правила сайтов.** Только в `decide()`/`buildRules()` — popup и PAC используют одну и ту же функцию. Помни: функции, встраиваемые в PAC, не видят ничего снаружи. Добавь случай в раздел PAC в `test.mjs`.
 
-**Поменять порты.** `PORT`, `CONTROLLER` в `lib.js`; шаблон в `core/mihomo.ps1`; `host_permissions` в `manifest.json`. У уже установленных пользователей `config.yaml` не перезаписывается — им придётся поправить его руками или удалить (создастся заново с новым secret).
+**Поменять порты.** `PORT`, `CONTROLLER` в `lib.js`; шаблоны в `core/mihomo.ps1` и `core/mihomo.sh` (тест проверяет, что они одинаковые); `host_permissions` в `manifest.json`. У уже установленных пользователей `config.yaml` не перезаписывается — им придётся поправить его руками или удалить (создастся заново с новым secret).
 
 **Добавить российский сервис в «напрямую».** Массив `RU` в `lib.js` (домен покрывает поддомены).
 
-**Новая команда помощника.** Только в `switch` в `host.ps1`, без параметров из сообщения. Учти: у пользователей со старой версией новая команда появится лишь после того, как обновление уже произошло — расширение должно переживать ответ `Неизвестная команда`.
+**Новая команда помощника.** Только в `switch` в `host.ps1` и в `case` в `host.sh`, без параметров из сообщения. Учти: у пользователей со старой версией новая команда появится лишь после того, как обновление уже произошло — расширение должно переживать ответ `Неизвестная команда`.
 
 ## Стиль
 
 - Без сборки, фреймворков и зависимостей. Комментарии — по-русски, только «почему», не «что».
 - `.ps1` в `core/` — UTF-8 **с BOM** (иначе Windows PowerShell 5.1 ломает кириллицу). `install.ps1` — **без BOM** (BOM ломает `irm | iex`).
 - `host.bat` — одна строка, заканчивается `& exit /b` (см. [decisions.md](decisions.md#помощник-обновляет-сам-себя)).
+- `.sh` — окончания строк LF (`.gitattributes`), бит исполнения в git (`git update-index --chmod=+x`), весь код в функциях, последняя строка — `main "$@"; exit` (там же, почему).

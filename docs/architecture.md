@@ -11,7 +11,7 @@ flowchart LR
   end
   subgraph "Компьютер (127.0.0.1)"
     M[mihomo<br/>:17890 вход прокси<br/>:19090 REST API]
-    H[помощник<br/>core/host.ps1]
+    H[помощник<br/>core/host.ps1 · host.sh]
   end
   S[(твои серверы<br/>VLESS / Trojan / …)]
   G[(GitHub:<br/>main, itdoginfo)]
@@ -27,7 +27,7 @@ flowchart LR
 
 1. **Расширение** (`extension/`) решает, *какой сайт куда идёт*, и управляет ядром. Само VLESS и прочие протоколы оно не умеет: расширениям Chromium доступны только HTTP- и SOCKS-прокси.
 2. **Ядро mihomo** (бывший Clash.Meta) — отдельная программа на этом же компьютере. Скачивает подписки, держит соединения с серверами, выбирает живой сервер. Слушает только `127.0.0.1`.
-3. **Помощник** (`core/host.ps1`) — короткоживущий процесс, который браузер запускает по запросу расширения для двух вещей, недоступных расширению: запустить ядро и обновить файлы Лазейки.
+3. **Помощник** (`core/host.ps1` на Windows, `core/host.sh` на macOS и Linux) — короткоживущий процесс, который браузер запускает по запросу расширения для двух вещей, недоступных расширению: запустить ядро и обновить файлы Лазейки.
 
 ## Как идёт трафик
 
@@ -114,22 +114,23 @@ REST API на `127.0.0.1:19090`, заголовок `Authorization: Bearer <secr
 sequenceDiagram
   participant P as popup
   participant B as background.js
-  participant H as host.bat → host.ps1
+  participant H as помощник (host.bat → host.ps1 / host.sh)
   participant G as GitHub
   P->>B: runtime.sendMessage({host: 'update'})
   B->>H: connectNative('com.lazeyka.host') + {cmd: 'update'}
-  H->>G: скачать main.zip целиком, распаковать во временную папку
-  H->>H: скопировать поверх установки (кроме mihomo.exe, config.yaml)
-  H->>H: запустить mihomo.ps1 через WMI (ядро + перерегистрация помощника)
+  H->>G: скачать архив main целиком (zip / tar.gz), распаковать во временную папку
+  H->>H: скопировать поверх установки (кроме ядра и config.yaml)
+  H->>H: запустить mihomo.ps1 через WMI / mihomo.sh (ядро + перерегистрация помощника)
   H-->>B: {ok: true, version}
   B->>B: version новее? → chrome.runtime.reload()
   B-->>P: {ok, version} (popup закроется при перезагрузке)
 ```
 
 - Протокол Chrome: 4 байта длины + JSON в stdin/stdout. В stdout помощника не должно попадать ничего, кроме ответа.
-- Команды строго из списка: `ping` (версия), `start` (запустить ядро), `update`. Адрес репозитория зашит в `host.ps1`, из сообщения ничего не берётся.
-- Браузер пускает только расширение, чей ID указан в `core\host.json` → `allowed_origins`. ID распакованного расширения Chromium считает из пути к папке, `mihomo.ps1` повторяет эту формулу (`Get-ExtId`).
+- Команды строго из списка: `ping` (версия), `start` (запустить ядро), `update`. Адрес репозитория зашит в `host.ps1` и `host.sh`, из сообщения ничего не берётся.
+- Браузер пускает только расширение, чей ID указан в `core\host.json` → `allowed_origins`. ID распакованного расширения Chromium считает из пути к папке, `mihomo.ps1` повторяет эту формулу (`Get-ExtId`), `mihomo.sh` — тоже (`ext_id`). ID версии из магазина — в `core/store-ids.txt`.
 - Регистрация: ключи `HKCU\Software\<браузер>\NativeMessagingHosts\com.lazeyka.host` для Chrome, Edge, Chromium, Яндекса, Brave; значение по умолчанию — путь к `host.json`. Edge находит помощника и по ключу Chrome.
+- Регистрация на macOS и Linux: файл `com.lazeyka.host.json` (с `path` → `~/Lazeyka/core/host.sh`) в папке `NativeMessagingHosts` браузера — `~/Library/Application Support/<браузер>/` на macOS, `~/.config/<браузер>/` на Linux. Пишется для браузеров, чья папка уже есть, и всегда для Google Chrome.
 
 ## Фоновые задачи (`background.js`)
 
@@ -182,8 +183,10 @@ popup при «Сохранить» не перезаписывает `hwid`, `s
 |---|---|---|
 | Вход прокси (mixed: SOCKS5 + HTTP) | `127.0.0.1:17890` | `PORT` в `lib.js`, `config.yaml` |
 | REST API ядра | `127.0.0.1:19090` | `CONTROLLER` в `lib.js`, `config.yaml`, `host_permissions` в `manifest.json` |
-| Имя помощника | `com.lazeyka.host` | `HOST` в `lib.js`, `mihomo.ps1` |
-| Автозагрузка ядра | `HKCU\…\Run\LazeykaMihomo` | `mihomo.ps1 -Autostart` |
+| Имя помощника | `com.lazeyka.host` | `HOST` в `lib.js`, `mihomo.ps1`, `mihomo.sh` |
+| Автозагрузка ядра, Windows | `HKCU\…\Run\LazeykaMihomo` | `mihomo.ps1 -Autostart` |
+| Автозагрузка ядра, macOS | LaunchAgent `com.lazeyka.mihomo` (`~/Library/LaunchAgents/`) | `start_core` в `mihomo.sh` |
+| Автозагрузка ядра, Linux | `systemd --user`: `lazeyka-mihomo.service`; без него — `~/.config/autostart/lazeyka-mihomo.desktop` | `start_core` в `mihomo.sh` |
 | Health-check | `https://cp.cloudflare.com/generate_204` | `TEST_URL` в `lib.js` |
 | Тест скорости | `https://speed.cloudflare.com/__down?bytes=25000000`, не дольше 8 с | `SPEED_HOST`, `speedTest` в `lib.js`, `host_permissions` |
 | Список заблокированного | `itdoginfo/allow-domains/main/Russia/inside-raw.lst` | `BLOCKED_URL` в `lib.js` |
