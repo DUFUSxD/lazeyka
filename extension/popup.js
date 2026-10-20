@@ -2,7 +2,7 @@ import {
   GROUP, AUTO, CONTROLLER, load, norm, parseList, parseSubs, plainName, subName, buildRules, decide, isLan,
   pushConfig, ensureConfig, health, selectServer, testGroup, proxyState, applyProxy, toggle, updateBlocked, refreshSubs, viaVpn,
   exportSettings, importSettings, checkUpdate, newer, UPDATE_CMD, PING_OPTIONS, UPDATE_OPTIONS, SORT_OPTIONS,
-  ensureHwid, subStatus, sortServers, speedTest, subOrigins,
+  ensureHwid, subStatus, sortServers, speedTest, subOrigins, iconUrls,
 } from './lib.js';
 
 const $ = (id) => document.getElementById(id);
@@ -328,9 +328,9 @@ function subHeader(sub) {
   return [li, box];
 }
 
-// Логотип подписки — favicon сайта панели (сначала сам адрес, потом основной домен), иначе кружок с буквой.
+// Логотип подписки — favicon сайта провайдера (см. iconUrls), иначе кружок с буквой.
 // Сторонние сервисы иконок не используем: они узнали бы, какими панелями ты пользуешься.
-const icons = new Map(); // url подписки → найденный адрес картинки или null
+const icons = new Map(); // «подписка|кабинет» → найденный адрес картинки или null; кабинет узнали позже — ищем заново
 function subIcon(sub) {
   const letter = () => {
     const el = document.createElement('span');
@@ -340,19 +340,18 @@ function subIcon(sub) {
     return el;
   };
   if (!sub.url) return letter();
-  const known = icons.get(sub.url);
+  const web = s.subMeta[sub.url]?.web;
+  const key = `${sub.url}|${web ?? ''}`;
+  const known = icons.get(key);
   if (known === null) return letter();
   const img = new Image(16, 16);
   img.className = 'sub-ico';
   img.alt = '';
-  const u = new URL(sub.url);
-  const parts = u.hostname.split('.');
-  const tries = known ? [known] : [`${u.origin}/favicon.ico`,
-    ...(parts.length > 2 && !/^[\d.]+$/.test(u.hostname) ? [`https://${parts.slice(-2).join('.')}/favicon.ico`] : [])];
-  img.onload = () => icons.set(sub.url, img.src);
+  const tries = known ? [known] : iconUrls([web, sub.url]);
+  img.onload = () => icons.set(key, img.src);
   img.onerror = () => {
     const next = tries.shift();
-    if (next) img.src = next; else { icons.set(sub.url, null); img.replaceWith(letter()); }
+    if (next) img.src = next; else { icons.set(key, null); img.replaceWith(letter()); }
   };
   img.src = tries.shift();
   return img;
