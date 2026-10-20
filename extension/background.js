@@ -1,4 +1,4 @@
-import { load, ensureConfig, updateBlocked } from './lib.js';
+import { load, ensureConfig, updateBlocked, proxyState } from './lib.js';
 
 // mihomo после рестарта теряет залитый конфиг (до повторной заливки всё режет REJECT) — подстраховка раз в минуту.
 async function sync() {
@@ -13,6 +13,8 @@ function setup() {
   chrome.alarms.create('blocked', { periodInMinutes: 360 });
   sync();
   blocked();
+  // бейдж не переживает перезапуск браузера/перезагрузку расширения, а прокси — переживает
+  proxyState().then(({ on }) => chrome.action.setBadgeText({ text: on ? 'ON' : '' }));
 }
 chrome.runtime.onInstalled.addListener(setup);
 chrome.runtime.onStartup.addListener(setup);
