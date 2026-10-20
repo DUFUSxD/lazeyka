@@ -360,9 +360,9 @@ Secret на каждом компьютере свой, поэтому стро�
 <td width="300" valign="top"><img src="docs/images/core-alert.png" alt="Ядро не запущено — кнопка «Запустить ядро»"></td>
 <td valign="top">
 
-**«Ядро mihomo не запущено».** Нажми **«Запустить ядро»**. Не помогло — нажми **«Скопировать команду»**, потом **Win + R**, **Ctrl + V**, **Enter**. Или просто перезагрузи компьютер — ядро стоит в автозагрузке.
+**«Ядро mihomo не запущено».** Нажми **«Запустить ядро»**. Не помогло — нажми **«Скопировать команду»**, потом **Win + R**, **Ctrl + V**, **Enter** (на macOS и Linux — вставь команду в терминал). Или просто перезагрузи компьютер — ядро стоит в автозагрузке.
 
-**«Неверный secret».** Открой в Блокноте `%LOCALAPPDATA%\Lazeyka\core\config.yaml` и скопируй значение после `secret:` (без кавычек) в настройки Лазейки.
+**«Неверный secret».** Открой в Блокноте `%LOCALAPPDATA%\Lazeyka\core\config.yaml` (на macOS и Linux — `~/Lazeyka/core/config.yaml`) и скопируй значение после `secret:` (без кавычек) в настройки Лазейки.
 
 **Подписка с красной плашкой «⚠ …» вместо серверов.** Она не скачалась, в плашке — почему. Если сайт подписки заблокирован в твоей сети, Лазейка сама скачает её через серверы других подписок (рядом появится «через VPN»). Если других рабочих серверов нет — нажми **«Скачать через VPN»**, когда они появятся.
 
@@ -382,23 +382,41 @@ Secret на каждом компьютере свой, поэтому стро�
 | Один конкретный сайт не открывается | Открой его, нажми на значок Лазейки и выбери **«Напрямую»** (или наоборот **«Через VPN»**). |
 | Звонки в браузере (Телемост, VK Звонки) хрипят | ⚙ → сними галочку «Защита от утечки IP через WebRTC». |
 | Сочетание Alt + Shift + L не работает | Его занял другой ярлык. ⚙ → «Горячая клавиша» → «Изменить». |
-| «Обновить» показывает команду вместо обновления | Один раз выполни показанную команду (Win + R → Ctrl + V → Enter), потом нажми «Перезапустить». |
-| «Лазейка загружена не из папки установщика» | Удали Лазейку на странице расширений и загрузи заново из `%LOCALAPPDATA%\Lazeyka\extension`. Настройки перенеси строкой (см. [перенос](#перенос-на-другой-компьютер)). |
+| «Обновить» показывает команду вместо обновления | Один раз выполни показанную команду (Win + R → Ctrl + V → Enter; на macOS и Linux — в терминале), потом нажми «Перезапустить». |
+| «Лазейка загружена не из папки установщика» | Удали Лазейку на странице расширений и загрузи заново из `%LOCALAPPDATA%\Lazeyka\extension` (на macOS и Linux — `~/Lazeyka/extension`). Настройки перенеси строкой (см. [перенос](#перенос-на-другой-компьютер)). |
+| Linux: «Обновить» и «Запустить ядро» не срабатывают | Скорее всего браузер из Snap или Flatpak (например, стандартный Chromium в Ubuntu): такие браузеры не запускают внешнего помощника. VPN работает, а команды из окна выполняй в терминале — или поставь Chrome, Brave либо Edge из .deb / .rpm. |
 | При установке красный текст «irm не является…» | Команду вставили в «Командную строку», а нужен «Терминал» / PowerShell — см. [шаг 1](#шаг-1-установи-ядро-одной-командой). |
 | При установке ошибка скачивания mihomo | GitHub недоступен из этой сети. Скачай на другом компьютере `mihomo-windows-amd64-compatible-….zip` со [страницы релизов](https://github.com/MetaCubeX/mihomo/releases), распакуй и положи файл как `%LOCALAPPDATA%\Lazeyka\core\mihomo.exe`, затем повтори команду. |
 | Антивирус ругается на `mihomo.exe` | Некоторые антивирусы настороженно относятся к любым прокси-программам. mihomo — проект с открытым кодом, скачивается с официального GitHub. Если антивирус убрал файл — верни его из карантина или повтори установку. |
 
-Не помогло — заведи [issue](https://github.com/DUFUSxD/lazeyka/issues) и опиши, что видишь (скриншот окна Лазейки очень поможет). Подробная диагностика для тех, кто не боится PowerShell, — в [docs/troubleshooting.md](docs/troubleshooting.md).
+Не помогло — заведи [issue](https://github.com/DUFUSxD/lazeyka/issues) и опиши, что видишь (скриншот окна Лазейки очень поможет). Подробная диагностика для тех, кто не боится командной строки, — в [docs/troubleshooting.md](docs/troubleshooting.md).
 
 ## Удаление
 
 1. На странице расширений (`chrome://extensions` / `edge://extensions`) нажми у Лазейки **«Удалить»**. Браузер сразу вернёт обычные настройки сети.
-2. Открой **Терминал** (Win + X) и выполни:
+2. Убери ядро и помощника.
+
+   **Windows** — открой **Терминал** (Win + X) и выполни:
    ```powershell
    Get-Process mihomo -ErrorAction SilentlyContinue | Where-Object Path -like "$env:LOCALAPPDATA\Lazeyka\*" | Stop-Process -Force
    Remove-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Run LazeykaMihomo -ErrorAction SilentlyContinue
    'Google\Chrome', 'Microsoft\Edge', 'Chromium', 'Yandex\YandexBrowser', 'BraveSoftware\Brave-Browser' | ForEach-Object { Remove-Item "HKCU:\Software\$_\NativeMessagingHosts\com.lazeyka.host" -ErrorAction SilentlyContinue }
    Remove-Item "$env:LOCALAPPDATA\Lazeyka" -Recurse -Force
+   ```
+
+   **macOS** — в Терминале:
+   ```sh
+   launchctl bootout "gui/$(id -u)/com.lazeyka.mihomo" 2>/dev/null; rm -f ~/Library/LaunchAgents/com.lazeyka.mihomo.plist
+   rm -f ~/Library/Application\ Support/*/NativeMessagingHosts/com.lazeyka.host.json ~/Library/Application\ Support/*/*/NativeMessagingHosts/com.lazeyka.host.json
+   rm -rf ~/Lazeyka
+   ```
+
+   **Linux** — в терминале:
+   ```sh
+   systemctl --user disable --now lazeyka-mihomo 2>/dev/null; pkill -f Lazeyka/core/mihomo
+   rm -f ~/.config/systemd/user/lazeyka-mihomo.service ~/.config/autostart/lazeyka-mihomo.desktop
+   rm -f ~/.config/*/NativeMessagingHosts/com.lazeyka.host.json ~/.config/*/*/NativeMessagingHosts/com.lazeyka.host.json
+   rm -rf ~/Lazeyka
    ```
 
 ## Безопасность и приватность

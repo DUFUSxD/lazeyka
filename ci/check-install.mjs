@@ -4,7 +4,7 @@
 // Chrome управляется по каналу отладки (--remote-debugging-pipe): брендовый Chrome с версии 137 игнорирует
 // --load-extension, официальная замена — команда Extensions.loadUnpacked.
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { join } from 'node:path';
@@ -40,7 +40,19 @@ const chrome = {
   darwin: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   linux: 'google-chrome',
 }[os];
-const browser = spawn(chrome, ['--headless=new', '--remote-debugging-pipe', '--enable-unsafe-extension-debugging',
+// профиль по умолчанию, как у пользователя: без --user-data-dir headless Chrome берёт временный, а на Linux
+// папку помощников (NativeMessagingHosts) Chrome ищет внутри профиля
+const profile = {
+  win32: join(process.env.LOCALAPPDATA ?? '', 'Google', 'Chrome', 'User Data'),
+  darwin: join(homedir(), 'Library', 'Application Support', 'Google', 'Chrome'),
+  linux: join(homedir(), '.config', 'google-chrome'),
+}[os];
+// помощник напрямую, тем же кадром, что шлёт Chrome: отделяет поломку помощника от поломки регистрации
+if (os !== 'win32') { // на Windows path — host.bat относительно host.json, его проверяет только Chrome
+  const direct = spawnSync(host.path, { input: Buffer.concat([Buffer.from([16, 0, 0, 0]), Buffer.from('{"cmd":"ping"}  ')]) });
+  console.log('помощник напрямую:', direct.status, JSON.stringify(direct.stdout?.subarray(4).toString()), direct.stdout?.subarray(0, 4), direct.stderr?.toString().slice(0, 500));
+}
+const browser = spawn(chrome, ['--headless=new', '--remote-debugging-pipe', '--enable-unsafe-extension-debugging', `--user-data-dir=${profile}`,
   '--no-first-run', '--no-default-browser-check', ...(os === 'linux' ? ['--no-sandbox'] : []), 'about:blank'],
 { stdio: ['ignore', 'ignore', 'pipe', 'pipe', 'pipe'] });
 let log = '';
@@ -72,12 +84,16 @@ try {
   const sw = await until('service worker расширения', async () => (await send('Target.getTargets')).targetInfos
     .find((t) => t.type === 'service_worker' && t.url.startsWith(`chrome-extension://${id}/`)));
   const { sessionId } = await send('Target.attachToTarget', { targetId: sw.targetId, flatten: true });
-  const ask = async (cmd) => (await send('Runtime.evaluate', { awaitPromise: true, returnByValue: true, expression: `new Promise((r) => {
-    const p = chrome.runtime.connectNative('com.lazeyka.host');
-    p.onMessage.addListener((m) => { r(m); p.disconnect(); });
-    p.onDisconnect.addListener(() => r({ ok: false, error: chrome.runtime.lastError?.message ?? 'disconnect' }));
-    p.postMessage({ cmd: '${cmd}' });
-  })` }, sessionId)).result?.value;
+  const ask = async (cmd) => {
+    const res = await send('Runtime.evaluate', { awaitPromise: true, returnByValue: true, expression: `new Promise((r) => {
+      const p = chrome.runtime.connectNative('com.lazeyka.host');
+      p.onMessage.addListener((m) => { r(m); p.disconnect(); });
+      p.onDisconnect.addListener(() => r({ ok: false, error: chrome.runtime.lastError?.message ?? 'disconnect' }));
+      p.postMessage({ cmd: '${cmd}' });
+    })` }, sessionId);
+    if (res.exceptionDetails || res.result?.value === undefined) console.log('evaluate:', JSON.stringify(res));
+    return res.result?.value;
+  };
   const manifest = JSON.parse(readFileSync(join(root, 'extension', 'manifest.json'), 'utf8'));
   const ping = await ask('ping');
   console.log('ping:', JSON.stringify(ping));
