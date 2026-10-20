@@ -66,7 +66,7 @@ flowchart TD
 | Группа | Тип | Состав | Зачем |
 |---|---|---|---|
 | `PROXY` | select | `REJECT`, `AUTO`, все серверы | то, что выбрано в списке серверов |
-| `AUTO` | url-test | `REJECT`, все серверы | ⚡ Авто: самый быстрый живой, проверка раз в 5 мин (`lazy: false`) |
+| `AUTO` | url-test | `REJECT`, все серверы | ⚡ Авто: самый быстрый живой; проверка по настройке «Проверять серверы» (`pingInterval`, по умолчанию 300 с), `lazy: false` |
 | `SITE0…n` | select | `REJECT`, все серверы | по одной на сервер, выбранный для каких-то сайтов |
 
 `REJECT` всегда стоит первым: если подписка не скачалась или все серверы мертвы, группа выбирает блокировку, а не встроенный `COMPATIBLE`, который mihomo подставляет в пустую группу и который на деле = напрямую.
@@ -86,7 +86,7 @@ REST API на `127.0.0.1:19090`, заголовок `Authorization: Bearer <secr
 | `GET /group/AUTO/delay` ×2 | `pushConfig` | сбросить 10-секундный кэш url-test, см. [decisions.md](decisions.md#авто-после-перезаливки) |
 | `GET /proxies/PROXY` | `ensureConfig`, `health` | есть ли наш конфиг (404 = ядро перезапускалось), что выбрано |
 | `GET /proxies/AUTO` | `health` | на каком сервере сейчас Авто |
-| `GET /providers/proxies` | `health` | живость и задержки серверов из health-check |
+| `GET /providers/proxies` | `health` | живость и задержки серверов из health-check; какие серверы в какой подписке; трафик и срок (`subscriptionInfo` из заголовка `Subscription-Userinfo`) |
 | `PUT /proxies/PROXY` `{name}` | `selectServer` | выбор сервера в списке |
 | `GET /group/PROXY/delay` | кнопка «Пинг» | проверить все серверы сейчас |
 | `PUT /providers/proxies/subN` | кнопка ⟳ | перекачать подписку |
@@ -122,7 +122,7 @@ sequenceDiagram
 |---|---|---|
 | `sync` | 1 мин | `ensureConfig` + `health`; значок (зелёный / серый / красный «!»); уведомления при смене состояния: выбранный сервер не отвечает, все мертвы, ядро не запущено |
 | `blocked` | 6 ч | скачать список itdoginfo (меньше 100 доменов — считаем битым, оставляем старый) |
-| `update` | 6 ч | `checkUpdate`: версия из `main/extension/manifest.json`, заметки из `main/CHANGELOG.md`; одно уведомление на версию |
+| `update` | по настройке «Искать обновления» (`updateEvery`, по умолчанию 6 ч; `0` — таймера нет и при запуске GitHub не дёргается) | `checkUpdate`: версия из `main/extension/manifest.json`, заметки из `main/CHANGELOG.md`; одно уведомление на версию |
 
 Таймеры создаются только в `onInstalled`/`onStartup`: повторное создание при каждом пробуждении service worker сбрасывало бы 6-часовые таймеры.
 
@@ -133,6 +133,9 @@ sequenceDiagram
 | Ключ | Что | Попадает в экспорт |
 |---|---|---|
 | `subs` | ссылки на подписки | ✅ |
+| `subNames` | `{ссылка: своё название}` — без названия показывается домен панели | ✅ |
+| `pingInterval` | секунды между проверками серверов (`PING_OPTIONS`) | ✅ |
+| `updateEvery` | минуты между проверками обновлений, `0` — вручную (`UPDATE_OPTIONS`) | ✅ |
 | `secret` | secret ядра (свой на каждом компьютере) | ❌ |
 | `rest` | `vpn` / `direct` — «Остальные сайты» | ✅ |
 | `ruDirect`, `useBlocked`, `webrtc`, `subViaVpn` | галочки в настройках | ✅ |

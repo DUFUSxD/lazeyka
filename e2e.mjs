@@ -55,7 +55,13 @@ const b64 = Buffer.from([ // формат 3x-ui: base64 со ссылками; �
   `ss://${Buffer.from('aes-128-gcm:pass').toString('base64')}@127.0.0.1:3#FI-3`,
 ].join('\n')).toString('base64');
 let hits = 0;
-const subSrv = http.createServer((req, res) => { hits++; res.end(req.url === '/yaml' ? yaml : b64); }).listen(18888, '127.0.0.1');
+// /yaml отдаёт ещё и трафик со сроком, как 3x-ui / Marzban / Remnawave
+const USERINFO = 'upload=1073741824; download=2147483648; total=10737418240; expire=1893456000';
+const subSrv = http.createServer((req, res) => {
+  hits++;
+  if (req.url === '/yaml') res.setHeader('subscription-userinfo', USERINFO);
+  res.end(req.url === '/yaml' ? yaml : b64);
+}).listen(18888, '127.0.0.1');
 
 // Запрос «из браузера» через HTTP-вход mihomo.
 const viaCore = (url) => new Promise((resolve) => {
@@ -82,6 +88,7 @@ const s = {
   ...DEFAULTS, secret,
   subs: ['http://127.0.0.1:18888/yaml', 'http://127.0.0.1:18888/b64'],
   siteServers: { 'b.lzk': '1| B', 'gone.lzk': '1| ZZZ', 'auto.lzk': AUTO },
+  subNames: { 'http://127.0.0.1:18888/yaml': 'Мой VPN' },
 };
 let p = start();
 try {
@@ -99,6 +106,13 @@ try {
   assert.ok(h.nodes.get('1| A').alive && h.nodes.get('1| A').delay > 0);
   assert.equal(h.nodes.get('1| C').delay, 0);
   assert.equal(h.dead, false);
+  // серверы по подпискам: своё название или домен, трафик и срок из заголовка
+  assert.deepEqual(h.subs.map((x) => [x.key, x.name, x.servers]), [
+    ['sub1', 'Мой VPN', ['1| A', '1| B', '1| C']],
+    ['sub2', '127.0.0.1', ['2| NL-1', '2| DE-2', '2| FI-3']],
+  ]);
+  assert.deepEqual(h.subs[0].info, { Upload: 1073741824, Download: 2147483648, Total: 10737418240, Expire: 1893456000 }, JSON.stringify(h.subs[0].info));
+  assert.equal(h.subs[1].info, null, 'без заголовка — без трафика');
 
   await selectServer(AUTO, secret);
   assert.match(await viaCore('http://x.lzk/'), /^via:[AB]$/, 'обычный сайт — через Авто');

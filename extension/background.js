@@ -1,5 +1,5 @@
 import {
-  AUTO, load, ensureConfig, updateBlocked, proxyState, setBadge, health, selectServer, toggle,
+  AUTO, load, ensureConfig, updateBlocked, proxyState, setBadge, health, selectServer, toggle, plainName,
   checkUpdate, newer, hostCall,
 } from './lib.js';
 
@@ -30,7 +30,7 @@ async function sync() {
   await chrome.storage.session.set({ last: state });
   if (state === 'dead') notify('lzk', 'Лазейка: все серверы недоступны', 'Сайты через VPN не откроются. Проверь подписку или сеть.');
   if (state === 'nowDead') {
-    notify('lzk', `Лазейка: сервер «${h.now}» не отвечает`, 'Можно переключиться на ⚡ Авто — он сам выберет живой сервер.',
+    notify('lzk', `Лазейка: сервер «${plainName(h.now)}» не отвечает`, 'Можно переключиться на ⚡ Авто — он сам выберет живой сервер.',
       [{ title: 'Переключить на ⚡ Авто' }]);
   }
   if (state === 'core') notify('lzk', 'Лазейка: ядро mihomo не запущено', 'Сайты через VPN не откроются. Открой Лазейку и нажми «Запустить ядро».');
@@ -65,14 +65,22 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
 });
 
 // alarms создаём только тут: пересоздание при каждом пробуждении сбрасывало бы таймеры
-function setup() {
+// Проверка обновлений по настройке; 0 — «только вручную»: никаких обращений к GitHub, даже при запуске.
+async function scheduleUpdates(check) {
+  const { updateEvery } = await load();
+  if (!updateEvery) return chrome.alarms.clear('update');
+  chrome.alarms.create('update', { periodInMinutes: updateEvery });
+  if (check) updates();
+}
+
+async function setup() {
   chrome.alarms.create('sync', { periodInMinutes: 1 });
   chrome.alarms.create('blocked', { periodInMinutes: 360 });
-  chrome.alarms.create('update', { periodInMinutes: 360 });
   sync();
   blocked();
-  updates();
+  await scheduleUpdates(true);
 }
+chrome.storage.onChanged.addListener((ch, area) => { if (area === 'local' && ch.updateEvery) scheduleUpdates(false); });
 chrome.runtime.onInstalled.addListener((d) => {
   setup();
   if (d.reason === 'update' && d.previousVersion !== VERSION) {

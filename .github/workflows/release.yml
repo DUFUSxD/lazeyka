@@ -1,0 +1,30 @@
+# Релиз на GitHub для каждой новой версии из extension/manifest.json.
+# Чисто витрина: само обновление у пользователей идёт из ветки main, а не из релизов.
+name: Релиз
+
+on:
+  push:
+    branches: [main]
+    paths: [extension/manifest.json]
+  workflow_dispatch: # перезапуск вручную: Actions → Релиз → Run workflow
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Опубликовать релиз, если такой версии ещё нет
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=$(node -p "require('./extension/manifest.json').version")
+          if gh release view "v$v" > /dev/null 2>&1; then
+            echo "v$v уже опубликован — ничего не делаю"
+            exit 0
+          fi
+          node .github/release-notes.mjs "$v" > notes.md
+          gh release create "v$v" --title "Лазейка $v" --notes-file notes.md --target "$GITHUB_SHA"

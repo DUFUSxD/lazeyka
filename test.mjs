@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import {
-  buildConfig, buildRules, buildPac, decide, parseList, parseSubs, norm, exportSettings, importSettings, newer, changelogSince,
+  buildConfig, buildRules, buildPac, decide, parseList, parseSubs, plainName, subName, norm, exportSettings, importSettings, newer, changelogSince,
   DEFAULTS, GROUP, AUTO, PORT,
 } from './extension/lib.js';
 
@@ -15,6 +15,8 @@ assert.equal(one.secret, 's3cret');
 assert.deepEqual(one['proxy-groups'][0], { name: GROUP, type: 'select', proxies: ['REJECT', AUTO], use: ['sub1'] });
 assert.deepEqual(one['proxy-groups'][1].proxies, ['REJECT']); // все мертвы → блок, а не COMPATIBLE (= напрямую)
 assert.equal(one['proxy-groups'][1].lazy, false);
+assert.equal(one['proxy-groups'][1].interval, 300); // автопинг по умолчанию — 5 минут
+assert.equal(cfg({ subs: ['https://a'], pingInterval: 60 })['proxy-groups'][1].interval, 60);
 assert.equal(one['proxy-providers'].sub1.override, undefined); // одна подписка — без префикса
 assert.equal(one['proxy-providers'].sub1.proxy, 'DIRECT'); // иначе подписка качается через REJECT
 assert.equal(cfg({ subs: ['https://a'], subViaVpn: true })['proxy-providers'].sub1.proxy, GROUP);
@@ -35,7 +37,13 @@ assert.equal(norm('*.example.com'), 'example.com');
 assert.equal(norm('пример.рф'), 'xn--e1afmkfd.xn--p1ai');
 assert.equal(norm('# комментарий'), '');
 assert.deepEqual(parseList('.ua\r\n4pda.to\n\n4pda.to\na-vrv.akamaized.net\n# x\n '), ['ua', '4pda.to', 'a-vrv.akamaized.net']);
-assert.deepEqual(parseSubs(' https://a/sub \n\nhttps://a/sub\nhttp://b/s'), ['https://a/sub', 'http://b/s']);
+assert.deepEqual(parseSubs(' https://a/sub \n\nhttps://a/sub\nhttp://b/s'), [{ url: 'https://a/sub', name: '' }, { url: 'http://b/s', name: '' }]);
+// название перед ссылкой, с любым разделителем
+assert.deepEqual(parseSubs('Мой VPN https://a/s\nРабота — https://b/s\nДруг | https://c/s').map((x) => x.name), ['Мой VPN', 'Работа', 'Друг']);
+assert.equal(subName({ subNames: { 'https://a/s': 'Мой VPN' } }, 'https://a/s'), 'Мой VPN');
+assert.equal(subName({ subNames: {} }, 'https://panel.example.com:2096/sub/x'), 'panel.example.com'); // по умолчанию — домен панели
+assert.equal(plainName('2| 🇳🇱 NL-1'), '🇳🇱 NL-1');
+assert.equal(plainName('🇳🇱 12| fast'), '🇳🇱 12| fast'); // префикс только в начале
 assert.throws(() => parseSubs('vless://uuid@host:443?security=reality#NL'), /ключ одного сервера/);
 assert.throws(() => parseSubs('panel.example.com/sub'), /не похоже на ссылку/);
 
@@ -81,7 +89,8 @@ assert.deepEqual(decide('example.org', R), [true, 'rest']);
 
 // --- перенос настроек: туда-обратно без потерь, без secret, мусор отвергается
 const full = { ...DEFAULTS, secret: 'top', subs: ['https://p.example/sub/токен'], rest: 'direct', subViaVpn: true,
-  vpnList: ['x.com'], siteServers: { 'chatgpt.com': '🇺🇸 США-1| fast' }, blocked: ['a.com'] };
+  vpnList: ['x.com'], siteServers: { 'chatgpt.com': '🇺🇸 США-1| fast' }, blocked: ['a.com'],
+  subNames: { 'https://p.example/sub/токен': 'Мой VPN' }, pingInterval: 900, updateEvery: 0 };
 const str = exportSettings(full);
 assert.match(str, /^LZK1:[A-Za-z0-9_-]+$/);
 const back = importSettings(` ${str} `);
@@ -91,12 +100,15 @@ assert.deepEqual(back.subs, full.subs);
 assert.deepEqual(back.siteServers, full.siteServers);
 assert.equal(back.rest, 'direct');
 assert.equal(back.subViaVpn, true);
+assert.deepEqual(back.subNames, full.subNames);
+assert.equal(back.pingInterval, 900);
+assert.equal(back.updateEvery, 0); // «только вручную» — валидное значение, не путать с «нет значения»
 assert.throws(() => importSettings('hello'), /не строка настроек/);
 assert.throws(() => importSettings('LZK1:!!!'), /не строка настроек/);
 assert.throws(() => importSettings('LZK1:bm90IGpzb24'), /повреждена/);
 const evil = `LZK1:${Buffer.from(JSON.stringify({ subs: ['javascript:alert(1)'] })).toString('base64url')}`;
 assert.throws(() => importSettings(evil), /ключ одного сервера|не похоже/);
-const junk = Buffer.from(JSON.stringify({ rest: 'all', webrtc: 'yes', vpnList: ['ok.com', 5], secret: 'x' })).toString('base64url');
+const junk = Buffer.from(JSON.stringify({ rest: 'all', webrtc: 'yes', vpnList: ['ok.com', 5], secret: 'x', pingInterval: 7, updateEvery: '60' })).toString('base64url');
 assert.throws(() => importSettings(`LZK1:${junk}`), /нет настроек/); // неверные типы и secret игнорируются
 // --- обновления
 assert.equal(newer('1.2.0', '1.1.0'), true);
