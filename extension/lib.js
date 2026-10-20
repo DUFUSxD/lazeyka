@@ -16,6 +16,7 @@ export const DEFAULTS = {
   useBlocked: true,   // заблокированные в РФ — через VPN
   webrtc: true,
   subViaVpn: false,   // качать подписки через VPN (если панель заблокирована в этой сети)
+  subsViaVpn: [],     // отдельные подписки, которые не скачались напрямую и переведены на VPN (своё для каждой сети — не переносится)
   pingInterval: 300,  // автопинг серверов (health-check группы ⚡ Авто), секунды
   updateEvery: 360,   // проверка обновлений, минуты; 0 — только вручную
   vpnList: [], directList: [],
@@ -131,8 +132,9 @@ export function buildConfig(s) {
     'log-level': 'warning',
     profile: { 'store-selected': true },
     'proxy-providers': Object.fromEntries(s.subs.map((url, i) => [names[i], {
-      // без явного proxy mihomo качает подписку через правила, т.е. через REJECT, и она не грузится никогда
-      type: 'http', url, interval: 3600, proxy: s.subViaVpn ? GROUP : 'DIRECT',
+      // без явного proxy mihomo качает подписку через правила, т.е. через REJECT, и она не грузится никогда;
+      // через VPN — через ⚡ Авто, а не выбранный вручную сервер: тот может оказаться мёртвым
+      type: 'http', url, interval: 3600, proxy: viaVpn(s, url) ? AUTO : 'DIRECT',
       // префикс, чтобы одноимённые сервера из разных подписок не склеились
       ...(s.subs.length > 1 && { override: { 'additional-prefix': `${i + 1}| ` } }),
     }])),
@@ -169,10 +171,56 @@ export async function pushConfig(s) {
   });
   // после перезагрузки select-группы сайтов стоят на REJECT; сервера нет в подписке — так и останется (popup предупредит)
   await Promise.all(siteGroups(s).map((n, i) => select(`SITE${i}`, n, s.secret).catch(() => {})));
-  // Свежий url-test 10 с держит закэшированный выбор, и при фоновом трафике это REJECT (сайты блокируются).
-  // Тест группы сбрасывает кэш: первый наполняет историю задержек, второй — уже при известных живых серверах.
-  await testGroup(AUTO, s.secret);
-  await testGroup(AUTO, s.secret);
+  await settleAuto(s.secret);
+}
+
+// Свежий url-test 10 с держит закэшированный выбор, и при фоновом трафике после заливки конфига это REJECT
+// (сайты блокируются). Обновление подписки так не делает — mihomo сам перепроверяет серверы (проверено).
+// Тест группы сбрасывает кэш: первый наполняет историю, второй — уже при известных живых серверах.
+export async function settleAuto(secret) {
+  await testGroup(AUTO, secret);
+  await testGroup(AUTO, secret);
+}
+
+export const viaVpn = (s, url) => s.subViaVpn || s.subsViaVpn.includes(url);
+
+// Почему подписка не скачалась — человеческими словами. Только адрес сайта: путь ссылки — это личный токен.
+export function subError(e, url) {
+  let host = 'подписки';
+  try { host = new URL(url).host; } catch { /* оставим общее слово */ }
+  const raw = e?.message ?? String(e);
+  let m = raw;
+  try { m = JSON.parse(raw.replace(/^mihomo \d+: /, '')).message ?? raw; } catch { /* не JSON — как есть */ }
+  const code = m.match(/^(\d{3}) /)?.[1];
+  if (code === '404' || code === '410') return { kind: 'notfound', text: `${host} ответил «не найдено» (${code}): ссылка устарела или подписка удалена` };
+  if (['401', '403', '451'].includes(code)) return { kind: 'denied', text: `${host} отказал в доступе (${code}) — возможно, не пускает из этой сети или страны` };
+  if (/x509|certificate/i.test(m)) return { kind: 'cert', text: `У сайта ${host} проблема с сертификатом` };
+  if (/EOF|reset|timeout|deadline|refused|no such host|handshake|unreachable|forcibly/i.test(m)) {
+    return { kind: 'network', text: `Сайт ${host} не отвечает из этой сети — похоже, он здесь заблокирован` };
+  }
+  return { kind: 'other', text: `Не удалось скачать подписку с ${host}${code ? ` (${code})` : ''}` };
+}
+
+// Скачать подписки заново. Не вышло напрямую из-за сети или отказа, а живые серверы есть (из других подписок или кэша) —
+// эта подписка дальше качается через VPN: s.subsViaVpn меняется, сохранить его — дело вызывающего.
+// → Map(ссылка → null | { kind, text, viaVpn })
+export async function refreshSubs(s, indices = s.subs.map((_, i) => i)) {
+  const update = (i) => api(`/providers/proxies/sub${i + 1}`, s.secret, { method: 'PUT' }).then(() => null, (e) => subError(e, s.subs[i]));
+  const errors = new Map(await Promise.all(indices.map(async (i) => [s.subs[i], await update(i)])));
+  const retry = indices.filter((i) => ['network', 'denied', 'other'].includes(errors.get(s.subs[i])?.kind) && !viaVpn(s, s.subs[i]));
+  if (retry.length) {
+    await settleAuto(s.secret);
+    const h = await health(s);
+    if ([...h.nodes.values()].some((n) => n.delay > 0)) {
+      s.subsViaVpn = [...s.subsViaVpn, ...retry.map((i) => s.subs[i])];
+      await pushConfig(s);
+      for (const i of retry) {
+        const e = await update(i);
+        errors.set(s.subs[i], e && { ...e, text: `${e.text}. Через VPN тоже не вышло`, viaVpn: true });
+      }
+    }
+  }
+  return errors;
 }
 
 // После рестарта mihomo грузит базовый config.yaml без нашей группы — заливаем заново.

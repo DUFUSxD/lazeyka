@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import {
-  buildConfig, buildRules, buildPac, decide, parseList, parseSubs, plainName, subName, norm, exportSettings, importSettings, newer, changelogSince,
+  buildConfig, buildRules, buildPac, decide, parseList, parseSubs, plainName, subName, subError, norm, exportSettings, importSettings, newer, changelogSince,
   DEFAULTS, GROUP, AUTO, PORT,
 } from './extension/lib.js';
 
@@ -19,7 +19,24 @@ assert.equal(one['proxy-groups'][1].interval, 300); // автопинг по у�
 assert.equal(cfg({ subs: ['https://a'], pingInterval: 60 })['proxy-groups'][1].interval, 60);
 assert.equal(one['proxy-providers'].sub1.override, undefined); // одна подписка — без префикса
 assert.equal(one['proxy-providers'].sub1.proxy, 'DIRECT'); // иначе подписка качается через REJECT
-assert.equal(cfg({ subs: ['https://a'], subViaVpn: true })['proxy-providers'].sub1.proxy, GROUP);
+assert.equal(cfg({ subs: ['https://a'], subViaVpn: true })['proxy-providers'].sub1.proxy, AUTO); // через VPN — через ⚡ Авто
+const perSub = cfg({ subs: ['https://a', 'https://b'], subsViaVpn: ['https://b'] })['proxy-providers'];
+assert.deepEqual([perSub.sub1.proxy, perSub.sub2.proxy], ['DIRECT', AUTO]); // только та подписка, что не скачалась напрямую
+
+// --- почему подписка не скачалась: строки — как их реально отдаёт mihomo; токен из ссылки не показываем
+const TOKEN_URL = 'https://abc123.panel.example.com/s/SECRETTOKEN';
+let se = subError(new Error('mihomo 503: {"message":"Get \\"https://abc123.panel.example.com/s/SECRETTOKEN\\": EOF"}'), TOKEN_URL);
+assert.equal(se.kind, 'network');
+assert.match(se.text, /abc123\.panel\.example\.com не отвечает из этой сети/);
+assert.doesNotMatch(se.text, /SECRETTOKEN|\/s\//);
+assert.equal(subError(new Error('mihomo 503: {"message":"404 Not Found"}'), TOKEN_URL).kind, 'notfound');
+assert.equal(subError(new Error('mihomo 503: {"message":"403 Forbidden"}'), TOKEN_URL).kind, 'denied');
+assert.equal(subError(new Error('mihomo 503: {"message":"Get \\"https://x/s/t\\": dial tcp 1.2.3.4:443: i/o timeout"}'), TOKEN_URL).kind, 'network');
+assert.equal(subError(new Error('mihomo 503: {"message":"Get \\"https://x/s/t\\": read tcp: connection reset by peer"}'), TOKEN_URL).kind, 'network');
+assert.equal(subError(new Error('mihomo 503: {"message":"x509: certificate signed by unknown authority"}'), TOKEN_URL).kind, 'cert');
+se = subError(new Error('mihomo 503: {"message":"500 Internal Server Error"}'), TOKEN_URL);
+assert.equal(se.kind, 'other');
+assert.match(se.text, /\(500\)/);
 assert.deepEqual(one.rules, [`MATCH,${GROUP}`]);
 assert.equal(cfg({ subs: ['https://a', 'https://b'] })['proxy-providers'].sub2.override['additional-prefix'], '2| ');
 

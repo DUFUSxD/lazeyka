@@ -122,6 +122,9 @@ input[type=search] { width: 100%; margin-bottom: 6px; }
 .sub-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sub-info { margin-left: auto; color: var(--muted); font-size: 11px; white-space: nowrap; }
 .sub-info.warn { color: var(--warn); }
+.sub-error { display: flex; align-items: center; gap: 8px; margin: 4px 4px 6px; padding: 7px 9px; border-radius: 8px; background: var(--err-soft); font-size: 12px; }
+.sub-error span { flex: 1; }
+.sub-error .btn { flex: none; }
 
 #settingsView { display: flex; flex-direction: column; }
 .scroll { max-height: 486px; overflow-y: auto; padding-bottom: 4px; }

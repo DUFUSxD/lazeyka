@@ -1,6 +1,6 @@
 import {
-  GROUP, AUTO, api, load, norm, parseList, parseSubs, plainName, buildRules, decide, isLan,
-  pushConfig, ensureConfig, health, selectServer, testGroup, proxyState, applyProxy, toggle, updateBlocked,
+  GROUP, AUTO, load, norm, parseList, parseSubs, plainName, buildRules, decide, isLan,
+  pushConfig, ensureConfig, health, selectServer, testGroup, proxyState, applyProxy, toggle, updateBlocked, refreshSubs, viaVpn,
   exportSettings, importSettings, checkUpdate, newer, UPDATE_CMD, PING_OPTIONS, UPDATE_OPTIONS,
 } from './lib.js';
 
@@ -170,7 +170,7 @@ function renderSite() {
 
 function renderServers() {
   const q = $('search').value.trim().toLowerCase();
-  if (!h || h.empty) {
+  if (!h || (h.empty && !h.subs.length)) {
     $('count').textContent = '';
     $('search').hidden = true;
     const li = document.createElement('li');
@@ -181,11 +181,30 @@ function renderServers() {
   $('count').textContent = String(h.all.length - 1);
   $('search').hidden = h.all.length <= 9;
   const match = (n) => !q || plainName(n).toLowerCase().includes(q);
-  // ⚡ Авто сверху, дальше серверы группами по подпискам: шапка с логотипом, названием, трафиком и сроком
-  $('list').replaceChildren(nodeItem(AUTO), ...h.subs.flatMap((sub) => {
+  // ⚡ Авто сверху, дальше серверы группами по подпискам: шапка с логотипом, названием, трафиком и сроком.
+  // Подписка, которая не скачалась, тоже видна — с причиной, иначе непонятно, куда она делась.
+  $('list').replaceChildren(...(h.empty ? [] : [nodeItem(AUTO)]), ...h.subs.flatMap((sub) => {
+    if (!sub.servers.length) return q ? [] : subHeader(sub);
     const servers = sub.servers.filter(match);
-    return servers.length ? [subHeader(sub), ...servers.map(nodeItem)] : [];
+    return servers.length ? [...subHeader(sub), ...servers.map(nodeItem)] : [];
   }));
+}
+
+const subErrors = new Map(); // ссылка → { kind, text }: почему подписка не скачалась
+const triedSubs = new Set(); // пустые подписки, которые уже пробовали починить в этом открытии окна
+let fixing = false;
+
+// Скачать подписки заново; не скачалась напрямую — refreshSubs сам переводит её на VPN, если есть живые серверы.
+async function fixSubs(indices) {
+  const before = new Set(s.subsViaVpn);
+  const errors = await refreshSubs(s, indices);
+  await chrome.storage.local.set({ subsViaVpn: s.subsViaVpn });
+  for (const [url, e] of errors) if (e) subErrors.set(url, e); else subErrors.delete(url);
+  h = await health(s);
+  renderPower(); renderServers(); renderSite();
+  const moved = s.subsViaVpn.find((u) => !before.has(u) && errors.has(u) && !errors.get(u));
+  if (moved) toast(`Сайт подписки ${new URL(moved).host} недоступен напрямую — скачал через VPN ✓`);
+  return errors;
 }
 
 function nodeItem(n) {
@@ -242,9 +261,32 @@ function subHeader(sub) {
   const [text, warn] = subInfo(sub.info);
   const info = document.createElement('span');
   info.className = `sub-info${warn ? ' warn' : ''}`;
-  info.textContent = text;
+  info.textContent = sub.url && viaVpn(s, sub.url) ? [text, 'через VPN'].filter(Boolean).join(' · ') : text;
   li.append(subIcon(sub), name, info);
-  return li;
+  if (sub.servers.length) return [li];
+
+  // пустая подписка: почему и что можно сделать
+  const err = subErrors.get(sub.url);
+  const box = document.createElement('li');
+  box.className = 'sub-error';
+  const why = document.createElement('span');
+  why.textContent = `⚠ ${err?.text ?? (fixing ? 'Не скачалась — пробую ещё раз…' : 'Подписка не скачалась')}`;
+  box.append(why);
+  if (sub.url && !viaVpn(s, sub.url) && err && err.kind !== 'notfound') {
+    const b = document.createElement('button');
+    b.className = 'btn small';
+    b.textContent = 'Скачать через VPN';
+    b.onclick = () => run(() => busy(b, async () => {
+      s.subsViaVpn = [...s.subsViaVpn, sub.url];
+      await chrome.storage.local.set({ subsViaVpn: s.subsViaVpn });
+      toast('Скачиваю через VPN…');
+      await pushConfig(s);
+      const e = (await fixSubs([s.subs.indexOf(sub.url)])).get(sub.url);
+      if (e) throw new Error(e.text);
+    }));
+    box.append(b);
+  }
+  return [li, box];
 }
 
 // Логотип подписки — favicon сайта панели (сначала сам адрес, потом основной домен), иначе кружок с буквой.
@@ -283,6 +325,14 @@ async function refreshHealth() {
   renderPower(); renderServers(); renderSite();
   // Авто ещё ищет живой сервер — заглянем ещё раз чуть позже
   if (h.now === AUTO && h.autoNow === 'REJECT' && !h.dead && !h.empty && polls++ < 8) setTimeout(() => run(refreshHealth), 1500);
+  // пустые подписки — один раз за открытие окна узнать причину и, если можно, скачать через VPN
+  const broken = s.subs.map((u, i) => [u, i]).filter(([u]) => h.subs.find((x) => x.url === u)?.servers.length === 0 && !triedSubs.has(u));
+  if (broken.length && !fixing) {
+    for (const [u] of broken) triedSubs.add(u);
+    fixing = true;
+    renderServers();
+    run(() => fixSubs(broken.map(([, i]) => i))).finally(() => { fixing = false; renderServers(); });
+  }
 }
 
 async function render() {
@@ -338,14 +388,12 @@ $('ping').onclick = () => run(() => busy($('ping'), async () => {
 
 $('refresh').onclick = () => run(() => busy($('refresh'), async () => {
   toast('Обновляю подписки и списки…');
-  const res = await Promise.allSettled([
-    updateBlocked(),
-    ...s.subs.map((_, i) => api(`/providers/proxies/sub${i + 1}`, s.secret, { method: 'PUT' })),
-  ]);
+  const [blocked] = await Promise.allSettled([updateBlocked()]);
   s = await load();
-  await render();
-  const failed = res.find((r) => r.status === 'rejected');
-  if (failed) throw failed.reason;
+  fillSettings();
+  const failed = [...(await fixSubs(s.subs.map((_, i) => i))).values()].find(Boolean);
+  if (failed) throw new Error(failed.text); // только адрес сайта, без токена из ссылки
+  if (blocked.status === 'rejected') throw blocked.reason;
   toast('Обновлено ✓');
 }));
 

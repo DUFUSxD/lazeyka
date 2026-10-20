@@ -9,7 +9,7 @@ import { writeFileSync, readFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { api, ensureConfig, pushConfig, health, selectServer, testGroup, DEFAULTS, GROUP, AUTO } from './extension/lib.js';
+import { api, ensureConfig, pushConfig, health, selectServer, testGroup, refreshSubs, subError, DEFAULTS, GROUP, AUTO } from './extension/lib.js';
 
 const exe = process.argv[2];
 if (!exe) throw new Error('usage: node e2e.mjs <mihomo.exe>');
@@ -38,7 +38,9 @@ function fakeServer(name, port) {
         sock.resume();
         return;
       }
-      const up = net.connect({ port: +p, host, family: 4 }, () => { up.pipe(sock); sock.pipe(up); });
+      // 18889 — «заблокированный в этой сети» сайт подписки: напрямую рвёт соединение, через «VPN» доступен
+      const port = +p === 18889 ? 18888 : +p;
+      const up = net.connect({ port, host, family: 4 }, () => { up.pipe(sock); sock.pipe(up); });
       up.on('error', () => sock.destroy());
     });
   }).listen(port, '127.0.0.1');
@@ -60,8 +62,11 @@ const USERINFO = 'upload=1073741824; download=2147483648; total=10737418240; exp
 const subSrv = http.createServer((req, res) => {
   hits++;
   if (req.url === '/yaml') res.setHeader('subscription-userinfo', USERINFO);
+  if (req.url === '/blocked') return res.end('proxies:\n  - {name: D, type: http, server: 127.0.0.1, port: 18892}\n');
   res.end(req.url === '/yaml' ? yaml : b64);
 }).listen(18888, '127.0.0.1');
+// напрямую «заблокированный» сайт: соединение рвётся сразу, как при блокировке у провайдера
+const blockedSrv = net.createServer((sock) => sock.destroy()).listen(18889, '127.0.0.1');
 
 // Запрос «из браузера» через HTTP-вход mihomo.
 const viaCore = (url) => new Promise((resolve) => {
@@ -132,12 +137,13 @@ try {
   assert.equal(h.nowDead, true);
   assert.equal(h.dead, false);
 
-  // подписка через VPN: её скачивание идёт через выбранный сервер
-  await selectServer('1| A', secret);
+  // подписка через VPN: качается через ⚡ Авто (живой A или B), даже если выбран мёртвый C
+  await selectServer('1| C', secret);
   await pushConfig({ ...s, subViaVpn: true });
-  seen.A.length = 0;
+  seen.A.length = 0; seen.B.length = 0;
   await api('/providers/proxies/sub1', secret, { method: 'PUT' });
-  assert.ok(seen.A.includes('127.0.0.1:18888'), 'подписка скачана через сервер A');
+  assert.ok([...seen.A, ...seen.B].includes('127.0.0.1:18888'), 'подписка скачана через VPN');
+  await selectServer('1| A', secret);
   const before = hits;
   await api('/providers/proxies/sub2', secret, { method: 'PUT' });
   assert.ok(hits > before, 'refresh перекачивает подписку');
@@ -152,6 +158,24 @@ try {
   browsing = false;
   await traffic;
   assert.match(autoNow, /^1\| [AB]$/, 'Авто сразу после перезаливки под трафиком');
+
+  // подписка, сайт которой заблокирован в этой сети: напрямую — сетевая ошибка (без токена в тексте),
+  // refreshSubs сам переводит именно её на VPN, и она скачивается
+  const blockedUrl = 'http://127.0.0.1:18889/blocked';
+  const s3 = { ...s, subs: [...s.subs, blockedUrl], subsViaVpn: [] };
+  await pushConfig(s3);
+  assert.deepEqual((await health(s3)).subs[2].servers, [], 'напрямую не скачалась');
+  const direct = await api('/providers/proxies/sub3', secret, { method: 'PUT' }).then(() => null, (e) => subError(e, blockedUrl));
+  assert.equal(direct?.kind, 'network', JSON.stringify(direct));
+  assert.doesNotMatch(direct.text, /blocked/, 'путь ссылки (токен) не показываем');
+  seen.A.length = 0; seen.B.length = 0;
+  const errs = await refreshSubs(s3, [2]);
+  assert.equal(errs.get(blockedUrl), null, JSON.stringify(errs.get(blockedUrl)));
+  assert.deepEqual(s3.subsViaVpn, [blockedUrl], 'на VPN переведена только эта подписка');
+  assert.deepEqual((await health(s3)).subs[2].servers, ['3| D'], 'через VPN скачалась');
+  assert.ok([...seen.A, ...seen.B].includes('127.0.0.1:18889'));
+
+  await pushConfig(s);
   await selectServer('1| A', secret);
 
   // рестарт ядра: payload теряется, ensureConfig заливает заново, выборы восстанавливаются
@@ -173,7 +197,7 @@ try {
   console.log('E2E OK');
 } finally {
   p.kill();
-  for (const x of [...servers, subSrv]) x.close();
+  for (const x of [...servers, subSrv, blockedSrv]) x.close();
   await sleep(500);
   rmSync(dir, { recursive: true, force: true });
 }
