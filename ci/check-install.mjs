@@ -89,7 +89,7 @@ try {
   await until('chrome.runtime в service worker', async () => (await send('Runtime.evaluate', {
     expression: "typeof chrome === 'object' && typeof chrome.runtime?.connectNative === 'function'", returnByValue: true,
   }, sessionId)).result?.value === true);
-  const ask = async (cmd, ms) => {
+  const ask = async (cmd, ms = 60000) => { // первый запуск помощника на медленном раннере Windows бывает дольше 20 с
     const res = await send('Runtime.evaluate', { awaitPromise: true, returnByValue: true, expression: `new Promise((r) => {
       const p = chrome.runtime.connectNative('com.lazeyka.host');
       p.onMessage.addListener((m) => { r(m); p.disconnect(); });
