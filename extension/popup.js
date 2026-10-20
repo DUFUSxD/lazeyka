@@ -10,7 +10,7 @@ const WHY = { list: 'твой список', blocked: 'заблокирован 
 
 let s = await load();
 let on = false;
-let h = null;          // последняя сводка health() или null, если ядро недоступно
+let h;                 // сводка health(); undefined — ещё не загрузили, null — ядро недоступно
 let rest = s.rest;     // черновик «Остальные сайты» в настройках
 let bindings = {};     // черновик «Свои серверы для сайтов» в настройках
 let polls = 0;
@@ -85,16 +85,16 @@ function delayOf(name) {
 }
 
 function renderPower() {
-  const bad = on && (!h || h.empty || h.dead);
+  const bad = on && (h === null || h?.empty || h?.dead);
   $('power').className = `power${on ? (bad ? ' err' : ' on') : ''}`;
   $('power').setAttribute('aria-pressed', String(on));
   $('power').setAttribute('aria-label', on ? 'Выключить Лазейку' : 'Включить Лазейку');
   $('status').className = `status${on ? (bad ? ' err' : ' on') : ''}`;
   let status = on ? 'Включено' : 'Выключено';
   let sub = '';
-  if (on && !h) status = 'Нет связи с ядром';
-  else if (on && h.empty) status = 'Нет серверов';
-  else if (on && h.dead) status = 'Все серверы недоступны';
+  if (on && h === null) status = 'Нет связи с ядром';
+  else if (on && h?.empty) status = 'Нет серверов';
+  else if (on && h?.dead) status = 'Все серверы недоступны';
   if (h && !h.empty) {
     const cur = h.now === AUTO ? h.autoNow : h.now;
     if (h.now === AUTO && cur === 'REJECT') sub = h.dead ? '⚡ Авто: живых серверов нет' : '⚡ Авто подбирает сервер…';
@@ -135,7 +135,7 @@ function renderServers() {
     $('search').hidden = true;
     const li = document.createElement('li');
     li.className = 'empty';
-    li.textContent = h ? 'Серверов нет — проверь ссылки подписок в настройках' : '—';
+    li.textContent = h ? 'Серверов нет — проверь ссылки подписок в настройках' : h === null ? '—' : 'Загружаю…';
     return $('list').replaceChildren(li);
   }
   $('count').textContent = String(h.all.length - 1);
