@@ -71,13 +71,17 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
       </button>
     </div>
-    <input id="search" type="search" placeholder="Поиск сервера" aria-label="Поиск сервера" hidden>
+    <input id="search" type="search" placeholder="Поиск: сервер, страна, город" aria-label="Поиск сервера" hidden>
     <ul id="list" role="listbox" aria-label="Серверы"></ul>
   </section>
 </div>
 
 <div id="settingsView" hidden>
   <div class="scroll">
+    <section class="card">
+      <label class="field-row"><span>Язык · Language</span><select id="lang"></select></label>
+    </section>
+
     <section class="card">
       <h3>Подключение</h3>
       <label class="field">Secret

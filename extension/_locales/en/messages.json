@@ -1,0 +1,11 @@
+{
+  "extName": {
+    "message": "Lazeyka"
+  },
+  "extDesc": {
+    "message": "Browser VPN through your own subscriptions (VLESS/VMess/Trojan/SS/Hysteria2) on a local mihomo core, with per-site rules"
+  },
+  "toggle": {
+    "message": "Turn Lazeyka on / off"
+  }
+}

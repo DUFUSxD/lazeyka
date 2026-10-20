@@ -7,6 +7,8 @@ import {
   subStatus, sortServers, parseSubMeta, decodeText, migrateSub, deviceHeaders, iconUrls,
   DEFAULTS, GROUP, AUTO, PORT, SPEED, SPEED_HOST,
 } from './extension/lib.js';
+import { EN, t, plural } from './extension/i18n.js';
+import { serverFilter } from './extension/countries.js';
 
 const cfg = (over) => buildConfig({ ...DEFAULTS, secret: 'x', ...over });
 
@@ -210,4 +212,46 @@ assert.ok(notes.length >= 2 && notes.every((n) => n && !n.startsWith('-')), 'п�
 assert.deepEqual(changelogSince(md, '9.0.0'), []);
 assert.ok(changelogSince(md, '1.0.0').length > notes.length, 'несколько версий сразу');
 assert.deepEqual(changelogSince('## 1.3.0\r\n- **жирный** пункт\n## 1.2.0\n- старый', '1.2.0'), ['жирный пункт']);
+
+// --- переводы. Ключ — сам русский текст: весь русский текст интерфейса — в одинарных кавычках (это ключи t()),
+// и у каждого есть английский вариант. Русский в шаблонной строке `…` — значит, забыли обернуть в t().
+{
+  const cyr = /[а-яё]/i;
+  const keys = new Set();
+  const html = readFileSync(new URL('./extension/popup.html', import.meta.url), 'utf8');
+  for (const m of html.matchAll(/>([^<]+)</g)) keys.add(m[1].trim());
+  for (const m of html.matchAll(/(?:title|placeholder|aria-label)="([^"]*)"/g)) keys.add(m[1].replaceAll('&#10;', '\n'));
+  for (const f of ['popup.js', 'lib.js', 'background.js']) {
+    const src = readFileSync(new URL(`./extension/${f}`, import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    for (const line of src.split(/\r?\n/).map((l) => l.replace(/(^|[^:'"`])\/\/.*$/, '$1'))) {
+      for (const m of line.matchAll(/'((?:[^'\\]|\\.)*)'/g)) keys.add(m[1].replace(/\\n/g, '\n').replace(/\\(.)/g, '$1'));
+      const rest = line.replace(/'((?:[^'\\]|\\.)*)'/g, '');
+      assert.ok(!cyr.test(rest), `${f}: русский текст не в t(): ${line.trim().slice(0, 90)}`);
+    }
+  }
+  assert.deepEqual([...keys].filter((k) => cyr.test(k) && !EN[k]), [], 'нет английского перевода');
+}
+// по умолчанию (и в Node) — русский; подстановки и числительные
+assert.equal(t('{0} из {1} ГБ', 1, 2), '1 из 2 ГБ');
+assert.deepEqual([1, 2, 5, 11, 12, 21, 22, 25, 111].map((n) => plural(n, 'сервер|сервера|серверов')),
+  ['1 сервер', '2 сервера', '5 серверов', '11 серверов', '12 серверов', '21 сервер', '22 сервера', '25 серверов', '111 серверов']);
+
+// --- поиск по стране: названия — из Intl по коду (он же флаг), плюс разговорные синонимы
+{
+  const names = ['🇬🇧 London', 'UK-1', 'United Kingdom', 'Великобритания 2', '🇺🇦 Kyiv', 'UA-1', 'Ukraine', 'DE Frankfurt', '🇩🇪 Berlin',
+    'Russia', 'Australia', '🇺🇸 NY', 'US-West', 'nl-ams-01', '🇳🇱 Нидерланды', 'США 5', '🇫🇷 Paris'];
+  const find = (q) => names.filter(serverFilter(q));
+  const gb = ['🇬🇧 London', 'UK-1', 'United Kingdom', 'Великобритания 2'];
+  assert.deepEqual(find('Британия'), gb, 'Британия → флаг, UK, United Kingdom, Великобритания');
+  assert.deepEqual(find('uk'), gb, 'uk — Британия, не Украина');
+  assert.deepEqual(find('Англия'), gb);
+  assert.deepEqual(find('украина'), ['🇺🇦 Kyiv', 'UA-1', 'Ukraine']);
+  assert.deepEqual(find('германия'), ['DE Frankfurt', '🇩🇪 Berlin'], 'флаг 🇩🇪 — не устаревший код ГДР');
+  assert.deepEqual(find('us'), ['🇺🇸 NY', 'US-West', 'США 5'], 'us — не Russia/Australia');
+  assert.deepEqual(find('сша'), ['🇺🇸 NY', 'US-West', 'США 5']);
+  assert.deepEqual(find('ams'), ['nl-ams-01', '🇳🇱 Нидерланды'], 'подстрока по-прежнему работает, Амстердам — Нидерланды');
+  assert.deepEqual(find('Netherlands'), ['nl-ams-01', '🇳🇱 Нидерланды']);
+  assert.deepEqual(find('париж'), ['🇫🇷 Paris']);
+  assert.equal(find('').length, names.length);
+}
 console.log('ok');

@@ -1,3 +1,5 @@
+import { t, setLang } from './i18n.js';
+
 // Порты должны совпадать с core/mihomo.ps1 (нестандартные, чтобы не конфликтовать с Clash Verge / v2rayN).
 export const PORT = 17890;
 export const CONTROLLER = '127.0.0.1:19090';
@@ -28,17 +30,20 @@ export const DEFAULTS = {
   hideDead: false,    // прятать серверы, которые не ответили на проверку
   pingOnOpen: false,  // проверять серверы при открытии окна
   collapsed: [],      // ссылки подписок, чьи серверы свёрнуты в списке
+  lang: 'auto',       // язык интерфейса: 'auto' (как у браузера) | 'ru' | 'en'
   hwid: '',           // случайный идентификатор этого компьютера для панелей с лимитом устройств (не переносится)
   subMeta: {},        // ссылка → данные из служебных заголовков подписки (название, поддержка, объявление…)
   alerted: [],        // о чём уже уведомили: «ссылка|что|срок» — чтобы не повторять
   blocked: [], blockedAt: 0,
 };
-export const load = () => chrome.storage.local.get(DEFAULTS);
+// Заодно ставит язык интерфейса: всё, что показывает текст, сначала читает настройки.
+export const load = () => chrome.storage.local.get(DEFAULTS).then((s) => { setLang(s.lang); return s; });
 
-// Допустимые значения настроек со списком (они же — пункты выпадающих списков).
+// Допустимые значения настроек со списком (они же — пункты выпадающих списков; подписи переводятся там, где строится список).
 export const PING_OPTIONS = [[60, 'каждую минуту'], [300, 'каждые 5 минут'], [900, 'каждые 15 минут'], [1800, 'каждые 30 минут'], [3600, 'раз в час']];
 export const UPDATE_OPTIONS = [[60, 'каждый час'], [360, 'каждые 6 часов'], [1440, 'раз в день'], [10080, 'раз в неделю'], [0, 'только вручную']];
 export const SORT_OPTIONS = [['sub', 'как в подписке'], ['ping', 'по пингу'], ['name', 'по названию']];
+export const LANG_OPTIONS = [['auto', 'Как в браузере'], ['ru', 'Русский'], ['en', 'English']];
 
 // Панели с лимитом устройств (Remnawave и др.) без x-hwid отвечают 404. Значения — только ASCII.
 export const deviceHeaders = (hwid) => ({ 'x-hwid': hwid, 'x-device-os': 'Windows', 'x-device-model': 'Lazeyka' });
@@ -74,8 +79,8 @@ export function parseSubs(text) {
   for (const l of text.split(/\r?\n/).map((x) => x.trim()).filter(Boolean)) {
     const m = l.match(/^(.*?)\s*(https?:\/\/\S+)$/i);
     if (!m) {
-      if (/[a-z0-9]+:\/\//i.test(l)) throw new Error(`«${l.slice(0, 24)}…» — это ключ одного сервера, а нужна ссылка на подписку (https://…)`);
-      throw new Error(`«${l.slice(0, 30)}» — не похоже на ссылку подписки`);
+      if (/[a-z0-9]+:\/\//i.test(l)) throw new Error(t('«{0}…» — это ключ одного сервера, а нужна ссылка на подписку (https://…)', l.slice(0, 24)));
+      throw new Error(t('«{0}» — не похоже на ссылку подписки', l.slice(0, 30)));
     }
     const name = m[1].replace(/[\s|:—–-]+$/, '').trim().slice(0, 40);
     if (!out.some((x) => x.url === m[2])) out.push({ url: m[2], name });
@@ -254,35 +259,35 @@ export async function speedTest(name, s, { bytes = 25e6, maxMs = 8000 } = {}) {
   let got = 0;
   try {
     const r = await fetch(`https://${SPEED_HOST}/__down?bytes=${bytes}`, { cache: 'no-store', signal: ctrl.signal });
-    if (!r.ok) throw new Error(`тест скорости: HTTP ${r.status}`);
+    if (!r.ok) throw new Error(t('тест скорости: HTTP {0}', r.status));
     const reader = r.body.getReader();
     for (;;) { const { done, value } = await reader.read(); if (done) break; got += value.length; }
   } catch (e) {
-    if (e.name !== 'AbortError') throw new Error('Сервер не смог скачать тестовый файл — возможно, он не работает');
+    if (e.name !== 'AbortError') throw new Error(t('Сервер не смог скачать тестовый файл — возможно, он не работает'));
   } finally {
     clearTimeout(timer);
   }
-  if (got < 1e5) throw new Error('Сервер почти ничего не скачал за 8 секунд — возможно, он не работает');
+  if (got < 1e5) throw new Error(t('Сервер почти ничего не скачал за 8 секунд — возможно, он не работает'));
   return (got * 8) / ((performance.now() - t0) / 1000) / 1e6;
 }
 
 // Почему подписка не скачалась — человеческими словами. Только адрес сайта: путь ссылки — это личный токен.
 export function subError(e, url) {
-  let host = 'подписки';
+  let host = t('подписки');
   try { host = new URL(url).host; } catch { /* оставим общее слово */ }
   const raw = e?.message ?? String(e);
   let m = raw;
   try { m = JSON.parse(raw.replace(/^mihomo \d+: /, '')).message ?? raw; } catch { /* не JSON — как есть */ }
   const code = m.match(/^(\d{3}) /)?.[1];
   if (code === '404' || code === '410') {
-    return { kind: 'notfound', text: `${host} ответил «не найдено» (${code}): ссылка устарела, подписка удалена или у провайдера кончился лимит устройств` };
+    return { kind: 'notfound', text: t('{0} ответил «не найдено» ({1}): ссылка устарела, подписка удалена или у провайдера кончился лимит устройств', host, code) };
   }
-  if (['401', '403', '451'].includes(code)) return { kind: 'denied', text: `${host} отказал в доступе (${code}) — возможно, не пускает из этой сети или страны` };
-  if (/x509|certificate/i.test(m)) return { kind: 'cert', text: `У сайта ${host} проблема с сертификатом` };
+  if (['401', '403', '451'].includes(code)) return { kind: 'denied', text: t('{0} отказал в доступе ({1}) — возможно, не пускает из этой сети или страны', host, code) };
+  if (/x509|certificate/i.test(m)) return { kind: 'cert', text: t('У сайта {0} проблема с сертификатом', host) };
   if (/EOF|reset|timeout|deadline|refused|no such host|handshake|unreachable|forcibly/i.test(m)) {
-    return { kind: 'network', text: `Сайт ${host} не отвечает из этой сети — похоже, он здесь заблокирован` };
+    return { kind: 'network', text: t('Сайт {0} не отвечает из этой сети — похоже, он здесь заблокирован', host) };
   }
-  return { kind: 'other', text: `Не удалось скачать подписку с ${host}${code ? ` (${code})` : ''}` };
+  return { kind: 'other', text: `${t('Не удалось скачать подписку с {0}', host)}${code ? ` (${code})` : ''}` };
 }
 
 // Скачать подписки заново. Не вышло напрямую из-за сети или отказа, а живые серверы есть (из других подписок или кэша) —
@@ -300,7 +305,7 @@ export async function refreshSubs(s, indices = s.subs.map((_, i) => i)) {
       await pushConfig(s);
       for (const i of retry) {
         const e = await update(i);
-        errors.set(s.subs[i], e && { ...e, text: `${e.text}. Через VPN тоже не вышло`, viaVpn: true });
+        errors.set(s.subs[i], e && { ...e, text: t('{0}. Через VPN тоже не вышло', e.text), viaVpn: true });
       }
     }
   }
@@ -384,9 +389,9 @@ export async function toggle() {
 
 export async function updateBlocked() {
   const r = await fetch(BLOCKED_URL);
-  if (!r.ok) throw new Error(`список заблокированных: HTTP ${r.status}`);
+  if (!r.ok) throw new Error(t('список заблокированных: HTTP {0}', r.status));
   const blocked = parseList(await r.text());
-  if (blocked.length < 100) throw new Error('список заблокированных подозрительно короткий, оставил старый');
+  if (blocked.length < 100) throw new Error(t('список заблокированных подозрительно короткий, оставил старый'));
   await chrome.storage.local.set({ blocked, blockedAt: Date.now() });
   if ((await proxyState()).on) await applyProxy(await load());
 }
@@ -418,7 +423,7 @@ export function changelogSince(md, current) {
 export async function checkUpdate() {
   const get = (p) => fetch(`${RAW}/${p}`, { cache: 'no-store' });
   const r = await get('extension/manifest.json');
-  if (!r.ok) throw new Error(`проверка обновлений: HTTP ${r.status}`);
+  if (!r.ok) throw new Error(t('проверка обновлений: HTTP {0}', r.status));
   const { version: latest } = await r.json();
   const md = await get('CHANGELOG.md').then((x) => (x.ok ? x.text() : '')).catch(() => '');
   const update = { latest, notes: changelogSince(md, chrome.runtime.getManifest().version), checkedAt: Date.now() };
@@ -433,7 +438,7 @@ export function hostCall(cmd) {
     let answered = false;
     port.onMessage.addListener((m) => { answered = true; resolve(m); port.disconnect(); });
     port.onDisconnect.addListener(() => {
-      if (!answered) reject(new Error(chrome.runtime.lastError?.message || 'Помощник завершился без ответа'));
+      if (!answered) reject(new Error(chrome.runtime.lastError?.message || t('Помощник завершился без ответа')));
     });
     port.postMessage({ cmd });
   });
@@ -527,7 +532,7 @@ export async function refreshMeta(s) {
 
 // --- перенос настроек одной строкой (без secret — он свой на каждом компьютере)
 const PORTABLE = ['subs', 'subNames', 'rest', 'ruDirect', 'useBlocked', 'webrtc', 'subViaVpn', 'vpnList', 'directList', 'siteServers',
-  'pingInterval', 'updateEvery', 'sortServers', 'hideDead', 'pingOnOpen'];
+  'pingInterval', 'updateEvery', 'sortServers', 'hideDead', 'pingOnOpen', 'lang'];
 const b64enc = (str) => {
   let bin = '';
   for (const b of new TextEncoder().encode(str)) bin += String.fromCharCode(b);
@@ -541,10 +546,10 @@ export const exportSettings = (s) => `LZK1:${b64enc(JSON.stringify(Object.fromEn
 // Строка пришла извне: берём только известные ключи нужных типов и прогоняем через те же нормализаторы.
 export function importSettings(str) {
   const m = str.trim().match(/^LZK1:([A-Za-z0-9_-]+)$/);
-  if (!m) throw new Error('Это не строка настроек Лазейки (должна начинаться с LZK1:)');
+  if (!m) throw new Error(t('Это не строка настроек Лазейки (должна начинаться с LZK1:)'));
   let o;
-  try { o = JSON.parse(b64dec(m[1])); } catch { throw new Error('Строка настроек повреждена — скопируй её заново'); }
-  if (!o || typeof o !== 'object') throw new Error('Строка настроек повреждена');
+  try { o = JSON.parse(b64dec(m[1])); } catch { throw new Error(t('Строка настроек повреждена — скопируй её заново')); }
+  if (!o || typeof o !== 'object') throw new Error(t('Строка настроек повреждена'));
   const strings = (v) => Array.isArray(v) && v.every((x) => typeof x === 'string');
   const out = {};
   if (strings(o.subs)) out.subs = parseSubs(o.subs.join('\n')).map((x) => x.url);
@@ -556,6 +561,7 @@ export function importSettings(str) {
   if (o.rest === 'vpn' || o.rest === 'direct') out.rest = o.rest;
   for (const k of ['ruDirect', 'useBlocked', 'webrtc', 'subViaVpn', 'hideDead', 'pingOnOpen']) if (typeof o[k] === 'boolean') out[k] = o[k];
   if (SORT_OPTIONS.some(([v]) => v === o.sortServers)) out.sortServers = o.sortServers;
+  if (LANG_OPTIONS.some(([v]) => v === o.lang)) out.lang = o.lang;
   if (PING_OPTIONS.some(([v]) => v === o.pingInterval)) out.pingInterval = o.pingInterval;
   if (UPDATE_OPTIONS.some(([v]) => v === o.updateEvery)) out.updateEvery = o.updateEvery;
   for (const k of ['vpnList', 'directList']) if (strings(o[k])) out[k] = parseList(o[k].join('\n'));
@@ -563,6 +569,6 @@ export function importSettings(str) {
     out.siteServers = Object.fromEntries(Object.entries(o.siteServers)
       .filter(([d, n]) => norm(d) && typeof n === 'string' && n).map(([d, n]) => [norm(d), n]));
   }
-  if (!Object.keys(out).length) throw new Error('В строке нет настроек');
+  if (!Object.keys(out).length) throw new Error(t('В строке нет настроек'));
   return out;
 }
