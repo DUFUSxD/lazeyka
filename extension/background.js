@@ -11,7 +11,11 @@ const notify = (id, title, message, buttons) => chrome.notifications.create(id, 
 
 // Раз в минуту: mihomo после рестарта теряет залитый конфиг (до повторной заливки всё режет REJECT),
 // заодно следим за здоровьем серверов и предупреждаем при смене состояния, а не каждую минуту.
-async function sync() {
+// Запуски идут строго по очереди: таймер, горячая клавиша и старт браузера могут совпасть — параллельно
+// они удваивали уведомления, а запуск, начатый до переключения, ставил значку старое состояние.
+let syncQueue = Promise.resolve();
+const sync = () => (syncQueue = syncQueue.then(checkHealth, checkHealth));
+async function checkHealth() {
   const s = await load();
   const { on } = await proxyState();
   let state = 'ok';
@@ -85,7 +89,7 @@ async function meta() {
       moved++;
       notify(`lzk-move-${moved}`, t('Лазейка: {0}', t('провайдер сменил адрес подписки')), t('Подписка теперь на {0} — обновил сам, ничего делать не нужно.', new URL(to).host));
     }
-    await chrome.storage.local.set({ subMeta: s.subMeta, ...(moved && { subs: s.subs, subNames: s.subNames, subsViaVpn: s.subsViaVpn }) });
+    await chrome.storage.local.set({ subMeta: s.subMeta, ...(moved && { subs: s.subs, subNames: s.subNames, subsViaVpn: s.subsViaVpn, collapsed: s.collapsed }) });
     if (moved || intervals(s) !== before) await pushConfig(s).catch(() => {});
   } finally {
     metaRunning = false;

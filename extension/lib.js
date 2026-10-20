@@ -497,7 +497,10 @@ export function parseSubMeta(h, url) {
 export function migrateSub(s, from, to) {
   const re = (u) => (u === from ? to : u);
   const reKeys = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [re(k), v]));
-  return { subs: s.subs.map(re), subNames: reKeys(s.subNames), subsViaVpn: s.subsViaVpn.map(re), subMeta: reKeys(s.subMeta) };
+  return {
+    subs: s.subs.map(re), subNames: reKeys(s.subNames), subsViaVpn: s.subsViaVpn.map(re), subMeta: reKeys(s.subMeta),
+    collapsed: (s.collapsed ?? []).map(re), // свёрнутая подписка после переезда остаётся свёрнутой
+  };
 }
 
 const originOf = (url) => `${new URL(url).origin}/*`;

@@ -33,7 +33,8 @@ let on = false;
 let h;                 // сводка health(); undefined — ещё не загрузили, null — ядро недоступно
 let rest = s.rest;     // черновик «Остальные сайты» в настройках
 let bindings = {};     // черновик «Свои серверы для сайтов» в настройках
-let polls = 0;
+let polls = 0;         // сколько раз подряд перепроверили «Авто подбирает сервер…»
+let pollTimer;
 
 const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 const tabUrl = /^https?:/.test(tab?.url ?? '') ? tab.url : '';
@@ -175,24 +176,28 @@ function renderSite() {
     return g;
   });
   const extra = bound && bound !== AUTO && !names.includes(bound) ? [new Option(t('{0} (нет в подписке)', plainName(bound)), bound)] : [];
-  $('siteServer').replaceChildren(new Option(t('Как у всех'), ''), new Option(t('⚡ Авто'), AUTO), ...groups, ...extra);
-  $('siteServer').value = bound ?? '';
+  // пока список открыт, не пересобираем: фоновое обновление (раз в 1,5 с, пока Авто подбирает сервер) сбило бы выбор
+  if (document.activeElement !== $('siteServer')) {
+    $('siteServer').replaceChildren(new Option(t('Как у всех'), ''), new Option(t('⚡ Авто'), AUTO), ...groups, ...extra);
+    $('siteServer').value = bound ?? '';
+  }
   $('siteWarn').hidden = !missing;
   $('siteWarn').textContent = missing ? t('⚠ Сервера «{0}» больше нет в подписке — сайт заблокирован. Выбери другой.', plainName(bound)) : '';
 }
 
 function renderServers() {
-  const q = $('search').value.trim();
-  if (!h || (h.empty && !h.subs.length)) {
+  const noList = !h || (h.empty && !h.subs.length);
+  $('search').hidden = noList || h.all.length <= 9;
+  if ($('search').hidden) $('search').value = ''; // спрятанный поиск не должен незаметно фильтровать список
+  if (noList) {
     $('count').textContent = '';
-    $('search').hidden = true;
     const li = document.createElement('li');
     li.className = 'empty';
     li.textContent = h ? t('Серверов нет — проверь ссылки подписок в настройках') : h === null ? '—' : t('Загружаю…');
     return $('list').replaceChildren(li);
   }
   $('count').textContent = String(h.all.length - 1);
-  $('search').hidden = h.all.length <= 9;
+  const q = $('search').value.trim();
   const fits = serverFilter(q); // по имени, а ещё по стране: «Британия» найдёт 🇬🇧, UK, United Kingdom
   const match = (n) => fits(plainName(n));
   // выбранный, текущий у ⚡ Авто и привязанные к сайтам не прячем, даже если не отвечают
@@ -220,7 +225,9 @@ function renderServers() {
   }
   $('list').replaceChildren(...items);
 }
-let showDead = false; // «показать» скрытые неработающие — до закрытия окна
+// «показать» скрытые неработающие — только до следующего ввода в поиск или перехода в настройки,
+// иначе галочка «Скрывать неработающие» молча перестаёт действовать
+let showDead = false;
 
 // Свернуть/развернуть серверы подписки; запоминается. Удалённые подписки заодно вычищаются из списка.
 async function toggleSub(url) {
@@ -399,8 +406,11 @@ async function refreshHealth() {
   h = await health(s);
   if (h.now === 'REJECT' && !h.empty) { await selectServer(AUTO, s.secret); h = await health(s); } // первый запуск
   renderPower(); renderServers(); renderSite();
-  // Авто ещё ищет живой сервер — заглянем ещё раз чуть позже
-  if (h.now === AUTO && h.autoNow === 'REJECT' && !h.dead && !h.empty && polls++ < 8) setTimeout(() => run(refreshHealth), 1500);
+  // Авто ещё ищет живой сервер — заглянем ещё раз чуть позже (одна цепочка; счётчик обнуляет render)
+  if (h.now === AUTO && h.autoNow === 'REJECT' && !h.dead && !h.empty && polls++ < 8) {
+    clearTimeout(pollTimer);
+    pollTimer = setTimeout(() => run(refreshHealth), 1500);
+  }
   // пустые подписки — один раз за открытие окна узнать причину и, если можно, скачать через VPN
   const broken = s.subs.map((u, i) => [u, i]).filter(([u]) => h.subs.find((x) => x.url === u)?.servers.length === 0 && !triedSubs.has(u));
   if (broken.length && !fixing) {
@@ -412,6 +422,7 @@ async function refreshHealth() {
 }
 
 async function render() {
+  polls = 0; // включили, сохранили настройки, запустили ядро — Авто снова может подбирать сервер
   const st = await proxyState();
   on = st.on;
   renderPower(); renderSite();
@@ -540,7 +551,7 @@ $('refresh').onclick = () => run(() => busy($('refresh'), async () => {
   toast(t('Обновлено ✓'));
 }));
 
-$('search').oninput = renderServers;
+$('search').oninput = () => { showDead = false; renderServers(); };
 
 // --- обновления
 const fmtTime = (ms) => new Date(ms).toLocaleString(lang(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -642,6 +653,8 @@ for (const b of document.querySelectorAll('#restSeg button')) {
 }
 
 function showSettings() {
+  showDead = false; // вернутся на главный — неработающие снова спрятаны, если включено
+  renderServers();
   fillSettings();
   $('mainView').hidden = true;
   $('settingsView').hidden = false;

@@ -103,9 +103,10 @@ assert.equal(parseSubMeta(H({ 'new-domain': 'new.example.org' }), 'https://old.e
 assert.equal(parseSubMeta(H({ 'new-url': 'https://n.example/s/x' }), 'https://o.example/s/t').newUrl, 'https://n.example/s/x');
 assert.equal(parseSubMeta(H({ 'new-url': 'http://n.example/s/x' }), 'https://o.example/s/t').newUrl, '');
 assert.equal(parseSubMeta(H({ 'new-domain': 'new.example.org' }), 'http://old.example.com/s/t').newUrl, '');
-const mig = migrateSub({ subs: ['https://o/s', 'https://k/s'], subNames: { 'https://o/s': 'Мой' }, subsViaVpn: ['https://o/s'], subMeta: { 'https://o/s': { title: 'T' } } },
-  'https://o/s', 'https://n/s');
-assert.deepEqual(mig, { subs: ['https://n/s', 'https://k/s'], subNames: { 'https://n/s': 'Мой' }, subsViaVpn: ['https://n/s'], subMeta: { 'https://n/s': { title: 'T' } } });
+const mig = migrateSub({ subs: ['https://o/s', 'https://k/s'], subNames: { 'https://o/s': 'Мой' }, subsViaVpn: ['https://o/s'], subMeta: { 'https://o/s': { title: 'T' } },
+  collapsed: ['https://o/s'] }, 'https://o/s', 'https://n/s');
+assert.deepEqual(mig, { subs: ['https://n/s', 'https://k/s'], subNames: { 'https://n/s': 'Мой' }, subsViaVpn: ['https://n/s'], subMeta: { 'https://n/s': { title: 'T' } },
+  collapsed: ['https://n/s'] });
 // своё название важнее названия от провайдера
 assert.equal(subName({ subNames: {}, subMeta: { 'https://a/s': { title: 'От провайдера' } } }, 'https://a/s'), 'От провайдера');
 assert.equal(subName({ subNames: { 'https://a/s': 'Своё' }, subMeta: { 'https://a/s': { title: 'От провайдера' } } }, 'https://a/s'), 'Своё');
