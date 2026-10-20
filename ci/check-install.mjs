@@ -41,10 +41,18 @@ const chrome = {
 const args = ['--headless=new', '--remote-debugging-port=9222', '--no-first-run', '--no-default-browser-check',
   '--disable-features=DisableLoadExtensionCommandLineSwitch', `--load-extension=${join(root, 'extension')}`,
   ...(os === 'linux' ? ['--no-sandbox'] : []), 'about:blank'];
-const browser = spawn(chrome, args, { stdio: 'ignore' });
+const browser = spawn(chrome, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+let log = '';
+browser.stdout.on('data', (d) => { log += d; });
+browser.stderr.on('data', (d) => { log += d; });
 try {
   const sw = await until('service worker расширения', async () => (await (await fetch('http://127.0.0.1:9222/json')).json())
-    .find((t) => t.type === 'service_worker' && t.url.endsWith('/background.js')));
+    .find((t) => t.type === 'service_worker' && t.url.endsWith('/background.js'))).catch(async (e) => {
+    const targets = await fetch('http://127.0.0.1:9222/json').then((r) => r.json()).catch((x) => x.message);
+    const version = await fetch('http://127.0.0.1:9222/json/version').then((r) => r.json()).catch((x) => x.message);
+    console.log('Chrome:', JSON.stringify(version), '\nцели:', JSON.stringify(targets, null, 1), '\nвывод Chrome:\n', log.slice(-3000));
+    throw e;
+  });
   const id = new URL(sw.url).host;
   console.log('ID в Chrome:', id);
   assert.ok(host.allowed_origins.includes(`chrome-extension://${id}/`), `ID ${id} нет в allowed_origins: формула ID не совпала с Chrome`);

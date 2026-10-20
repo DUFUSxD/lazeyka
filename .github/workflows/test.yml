@@ -35,7 +35,8 @@ jobs:
         shell: powershell
         env:
           LAZEYKA_FROM: ${{ github.workspace }}
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File install.ps1
+        # как у пользователя (irm | iex): текст скрипта в UTF-8 без BOM, а -File прочитал бы его как ANSI
+        run: Get-Content -Raw -Encoding UTF8 install.ps1 | Invoke-Expression
 
       - name: Ядро, Chrome и помощник
         run: node ci/check-install.mjs

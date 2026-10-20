@@ -37,7 +37,7 @@
       <a class="upd-link" href="https://github.com/DUFUSxD/lazeyka/releases" target="_blank" rel="noopener">Все изменения ↗</a></div>
     <div id="updManual" class="upd-manual" hidden>
       <p id="updErr" class="hint"></p>
-      <p class="hint">Нажми Win+R, вставь команду и Enter — дальше обновления будут в один клик. Когда окно закроется, нажми «Перезапустить».</p>
+      <p class="hint" id="updHint"></p>
       <code id="updCmd" class="cmd"></code>
       <div class="row-btns"><button id="updCopy" class="btn">Скопировать команду</button><button id="updReload" class="btn">Перезапустить</button></div>
     </div>
@@ -89,7 +89,7 @@
           <button id="showSecret" class="icon-btn small" type="button" aria-label="Показать secret" title="Показать">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
           </button></span>
-        <span class="hint">Выдаёт установщик. Он же лежит в %LOCALAPPDATA%\Lazeyka\core\config.yaml</span>
+        <span class="hint" id="secretHint"></span>
       </label>
       <label class="field">Подписки <span class="hint">— по одной на строку, перед ссылкой можно написать название</span>
         <textarea id="subs" rows="3" placeholder="https://panel.example.com/sub/xxxx&#10;Мой провайдер https://vpn.example.org/s/yyyy" spellcheck="false"></textarea>

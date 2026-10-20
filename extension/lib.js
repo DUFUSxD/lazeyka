@@ -400,12 +400,35 @@ export async function updateBlocked() {
   if ((await proxyState()).on) await applyProxy(await load());
 }
 
-// --- обновления: версия и заметки из main на GitHub, установка — через помощника (core/host.ps1)
+// --- обновления: версия и заметки из main на GitHub, установка — через помощника (core/host.ps1, core/host.sh)
 export const RAW = 'https://raw.githubusercontent.com/DUFUSxD/lazeyka/main';
 export const HOST = 'com.lazeyka.host';
-export const UPDATE_CMD = `powershell -c "irm ${RAW}/install.ps1 | iex"`;
-// Из магазина ставится только расширение: ядро — тем же установщиком, но без «загрузи распакованное» в конце.
-export const STORE_INSTALL_CMD = `powershell -c "$env:LAZEYKA_STORE=1; irm ${RAW}/install.ps1 | iex"`;
+
+// Команды и пути под систему (os из chrome.runtime.getPlatformInfo): Windows — PowerShell и %LOCALAPPDATA%,
+// macOS и Linux — терминал и ~/Lazeyka. run* — как открыть место для команды (ключи переводов, переводит popup):
+// runMid — посреди фразы, runStart — в начале, runShort — в коротком сообщении.
+// storeInstall: из магазина ставится только расширение — ядро тем же установщиком, но без «загрузи распакованное».
+export function osInfo(os) {
+  if (os === 'win') {
+    return {
+      dir: '%LOCALAPPDATA%\\Lazeyka', sep: '\\',
+      install: `powershell -c "irm ${RAW}/install.ps1 | iex"`,
+      storeInstall: `powershell -c "$env:LAZEYKA_STORE=1; irm ${RAW}/install.ps1 | iex"`,
+      core: 'powershell -ExecutionPolicy Bypass -File "%LOCALAPPDATA%\\Lazeyka\\core\\mihomo.ps1"',
+      runMid: 'Win+R', runStart: 'Нажми Win+R', runShort: 'Win+R',
+    };
+  }
+  const mac = os === 'mac';
+  return {
+    dir: '~/Lazeyka', sep: '/',
+    install: `curl -fsSL ${RAW}/install.sh | sh`,
+    storeInstall: `curl -fsSL ${RAW}/install.sh | LAZEYKA_STORE=1 sh`,
+    core: 'sh ~/Lazeyka/core/mihomo.sh',
+    runMid: mac ? 'открой Терминал (Cmd+Пробел → «Терминал»)' : 'открой терминал (Ctrl+Alt+T)',
+    runStart: mac ? 'Открой Терминал (Cmd+Пробел → «Терминал»)' : 'Открой терминал (Ctrl+Alt+T)',
+    runShort: mac ? 'Терминал' : 'терминал',
+  };
+}
 // Установлено из Chrome Web Store / Edge Add-ons, а не «Загрузить распакованное»: обновления приходят из магазина.
 export const fromStore = async () => (await chrome.management.getSelf()).installType !== 'development';
 
