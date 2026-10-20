@@ -1,6 +1,6 @@
 // node ci/check-install.mjs — проверка после установщика (install.sh / install.ps1) на Windows, macOS и Linux:
 // ядро отвечает; настоящий Chrome загружает распакованное расширение; его ID — в allowed_origins помощника;
-// помощник отвечает расширению на ping и start через native messaging (формула ID, место регистрации, протокол).
+// помощник отвечает расширению на ping, start и update через native messaging (формула ID, место регистрации, протокол).
 // Chrome управляется по каналу отладки (--remote-debugging-pipe): брендовый Chrome с версии 137 игнорирует
 // --load-extension, официальная замена — команда Extensions.loadUnpacked.
 import assert from 'node:assert/strict';
@@ -68,9 +68,9 @@ browser.stdio[4].on('data', (d) => {
     if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); }
   }
 });
-const send = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
+const send = (method, params = {}, sessionId, ms = 20000) => new Promise((resolve, reject) => {
   const id = ++n;
-  const timer = setTimeout(() => { pending.delete(id); reject(new Error(`${method}: нет ответа`)); }, 20000);
+  const timer = setTimeout(() => { pending.delete(id); reject(new Error(`${method}: нет ответа`)); }, ms);
   pending.set(id, (m) => { clearTimeout(timer); if (m.error) reject(new Error(`${method}: ${m.error.message}`)); else resolve(m.result); });
   browser.stdio[3].write(`${JSON.stringify({ id, method, params, ...(sessionId && { sessionId }) })}\0`);
 });
@@ -89,13 +89,13 @@ try {
   await until('chrome.runtime в service worker', async () => (await send('Runtime.evaluate', {
     expression: "typeof chrome === 'object' && typeof chrome.runtime?.connectNative === 'function'", returnByValue: true,
   }, sessionId)).result?.value === true);
-  const ask = async (cmd) => {
+  const ask = async (cmd, ms) => {
     const res = await send('Runtime.evaluate', { awaitPromise: true, returnByValue: true, expression: `new Promise((r) => {
       const p = chrome.runtime.connectNative('com.lazeyka.host');
       p.onMessage.addListener((m) => { r(m); p.disconnect(); });
       p.onDisconnect.addListener(() => r({ ok: false, error: chrome.runtime.lastError?.message ?? 'disconnect' }));
       p.postMessage({ cmd: '${cmd}' });
-    })` }, sessionId);
+    })` }, sessionId, ms);
     if (res.exceptionDetails || res.result?.value === undefined) console.log('evaluate:', JSON.stringify(res));
     return res.result?.value;
   };
@@ -107,6 +107,13 @@ try {
   console.log('start:', JSON.stringify(start));
   assert.equal(start.ok, true);
   await until('ядро после start', coreUp);
+  // update — тот же путь, что у пользователя: архив main с GitHub, распаковка, копирование поверх установки
+  // (помощник перезаписывает сам себя), перезапуск ядра. Версия в ответе — та, что легла на диск.
+  const update = await ask('update', 120000);
+  console.log('update:', JSON.stringify(update));
+  assert.equal(update.ok, true);
+  assert.equal(update.version, JSON.parse(readFileSync(join(root, 'extension', 'manifest.json'), 'utf8')).version);
+  await until('ядро после update', coreUp);
   console.log('OK');
 } catch (e) {
   console.error(e);

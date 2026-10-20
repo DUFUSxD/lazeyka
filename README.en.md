@@ -109,7 +109,7 @@ Everything is per-user — no admin rights needed.
    ```
 3. In half a minute you'll see **«Готово»** (“Done”) and the secret. On macOS it's already in the clipboard; on Linux too if `wl-copy` or `xclip` is installed — otherwise copy it from the terminal window.
 
-Lazeyka goes to `~/Lazeyka`, the core starts by itself when you log in (macOS — LaunchAgent, Linux — `systemd --user`). No admin rights needed.
+Lazeyka goes to `~/Lazeyka`, the core starts by itself when you log in (macOS — LaunchAgent, Linux — `systemd --user`). No admin rights needed. macOS may show a “Background Items Added” notification mentioning `mihomo` — that is Lazeyka's core and it is expected. Don't switch it off in Login Items, or the core won't start by itself after a reboot.
 
 ### Step 2. Add the extension to your browser
 

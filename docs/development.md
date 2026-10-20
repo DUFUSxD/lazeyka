@@ -59,14 +59,14 @@ node e2e.mjs C:\path\to\mihomo.exe    # ~20 с, нужен интернет
 `.github/workflows/test.yml` («Проверки») идёт на каждый PR и push в `main` на Windows, macOS и Linux:
 1. `node test.mjs`;
 2. установка из проверяемой ветки: `LAZEYKA_FROM=$PWD sh install.sh`, на Windows — `Get-Content -Raw -Encoding UTF8 install.ps1 | Invoke-Expression` (так же, как `irm | iex` у пользователей);
-3. `node ci/check-install.mjs`: ядро отвечает; настоящий Chrome загружает расширение из папки установки (`Extensions.loadUnpacked` по протоколу отладки); его ID есть в `allowed_origins` помощника; `ping` и `start` через native messaging из service worker отвечают как надо;
+3. `node ci/check-install.mjs`: ядро отвечает; настоящий Chrome загружает расширение из папки установки (`Extensions.loadUnpacked` по протоколу отладки); его ID есть в `allowed_origins` помощника; `ping`, `start` и `update` (настоящее скачивание `main` с GitHub и копирование поверх) через native messaging из service worker отвечают как надо;
 4. ядро останавливается, `node e2e.mjs` идёт на только что установленном mihomo.
 
 Почему Chrome управляется так, а не флагами — в [decisions.md](decisions.md#проверка-на-настоящем-chrome-в-ci).
 
 ### Что тестами не покрыто
 
-Окно расширения и обновление проверялись вручную (у помощника CI проверяет `ping` и `start`, но не `update`) через Edge + DevTools Protocol (`--remote-debugging-port`). Для данных провайдера в тестовую копию `manifest.json` добавляют `http://127.0.0.1/*` в `host_permissions` (диалог разрешения по CDP не нажать), а фейковая панель отдаёт заголовки только `User-Agent: clash.meta/…` — так видно, что подмена UA работает, а обычная вкладка получает HTML. Не проверить в CI и автозапуск после перезагрузки (launchd, systemd, ключ Run), и диалог выбора папки. Если меняешь помощника, `mihomo.ps1`/`mihomo.sh` или поток обновления — прогони руками сценарий из [release.md](release.md#проверка-обновления-перед-выпуском).
+Окно расширения и обновление из окна (баннер, перезапуск расширения) проверялись вручную через Edge + DevTools Protocol (`--remote-debugging-port`). Для данных провайдера в тестовую копию `manifest.json` добавляют `http://127.0.0.1/*` в `host_permissions` (диалог разрешения по CDP не нажать), а фейковая панель отдаёт заголовки только `User-Agent: clash.meta/…` — так видно, что подмена UA работает, а обычная вкладка получает HTML. Не проверить в CI и автозапуск после перезагрузки (launchd, systemd, ключ Run), и диалог выбора папки. Если меняешь помощника, `mihomo.ps1`/`mihomo.sh` или поток обновления — прогони руками сценарий из [release.md](release.md#проверка-обновления-перед-выпуском).
 
 ## Как устроен код
 
