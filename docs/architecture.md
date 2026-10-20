@@ -160,6 +160,7 @@ sequenceDiagram
 | `siteServers` | `{домен: имя сервера или 'AUTO'}` | ✅ |
 | `sortServers` | `sub` / `ping` / `name` — порядок серверов (`SORT_OPTIONS`) | ✅ |
 | `hideDead`, `pingOnOpen` | галочки «Список серверов» | ✅ |
+| `collapsed` | ссылки подписок, свёрнутых в списке серверов | ❌ |
 | `blocked`, `blockedAt` | список itdoginfo и время загрузки | ❌ |
 | `hwid` | случайные 32 hex-символа — «устройство» для панелей с лимитом | ❌ — свой на каждом компьютере |
 | `subMeta` | `{ссылка: {title, support, web, announce, updateHours, newUrl, fetchedAt}}` | ❌ |

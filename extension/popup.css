@@ -127,6 +127,11 @@ input[type=search] { width: 100%; margin-bottom: 6px; }
 .sub-info.warn { color: var(--warn); }
 .sub-link { color: var(--accent); font-size: 11px; text-decoration: none; }
 .sub-link:hover { text-decoration: underline; }
+.sub-head.foldable { cursor: pointer; }
+.sub-toggle { flex: none; display: inline-flex; align-items: center; gap: 4px; margin-left: auto; padding: 1px 4px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.sub-head.foldable:hover .sub-toggle { background: var(--card-2); color: var(--text); }
+.sub-toggle svg { width: 14px; height: 14px; }
+.sub-toggle[aria-expanded="false"] svg { transform: rotate(-90deg); }
 
 /* строка сервера: выбор + тест скорости (кнопка видна при наведении, результат — всегда) */
 .node-row { display: flex; align-items: center; }

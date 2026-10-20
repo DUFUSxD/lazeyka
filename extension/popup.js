@@ -196,6 +196,7 @@ function renderServers() {
   // Подписка, которая не скачалась, тоже видна — с причиной, иначе непонятно, куда она делась.
   const items = [...(h.empty ? [] : [nodeItem(AUTO)]), ...h.subs.flatMap((sub) => {
     if (!sub.servers.length) return q ? [] : subHeader(sub);
+    if (!q && s.collapsed.includes(sub.url)) return subHeader(sub, true); // при поиске раскрыто всё
     const servers = sortServers(sub.servers, s.sortServers, h.nodes).filter(match).filter(visible);
     return servers.length || !q ? [...subHeader(sub), ...servers.map(nodeItem)] : [];
   })];
@@ -209,6 +210,17 @@ function renderServers() {
   $('list').replaceChildren(...items);
 }
 let showDead = false; // «показать» скрытые неработающие — до закрытия окна
+
+// Свернуть/развернуть серверы подписки; запоминается. Удалённые подписки заодно вычищаются из списка.
+async function toggleSub(url) {
+  const set = new Set(s.collapsed.filter((u) => s.subs.includes(u)));
+  if (!set.delete(url)) set.add(url);
+  s.collapsed = [...set];
+  await chrome.storage.local.set({ collapsed: s.collapsed });
+  renderServers();
+  // кнопка пересоздана — вернуть на неё фокус, чтобы с клавиатуры можно было жать дальше
+  $('list').querySelector(`.sub-toggle[data-url="${CSS.escape(url)}"]`)?.focus({ preventScroll: true });
+}
 
 const subErrors = new Map(); // ссылка → { kind, text }: почему подписка не скачалась
 const triedSubs = new Set(); // пустые подписки, которые уже пробовали починить в этом открытии окна
@@ -277,7 +289,7 @@ function speedButton(n) {
 // Шапка подписки в две строки: название; под ним трафик и срок (из Subscription-Userinfo), «через VPN» и ссылки провайдера.
 const GB = 1024 ** 3;
 const gb = (b) => (b / GB).toFixed(b < 10 * GB ? 1 : 0);
-function subHeader(sub) {
+function subHeader(sub, folded = false) {
   const st = subStatus(sub.info);
   const parts = [];
   if (st?.total) parts.push(`${gb(st.used)} из ${gb(st.total)} ГБ`); else if (st?.used) parts.push(`${gb(st.used)} ГБ`);
@@ -302,6 +314,19 @@ function subHeader(sub) {
   }
   const li = el('li', 'sub-head');
   li.append(subIcon(sub), lines);
+  if (sub.servers.length && sub.url) {
+    // свернуть/развернуть — стрелкой или щелчком по шапке (кроме ссылок провайдера)
+    const n = sub.servers.length;
+    const b = el('button', 'sub-toggle', folded ? `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'сервер' : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'сервера' : 'серверов'}` : '');
+    b.insertAdjacentHTML('beforeend', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>');
+    b.dataset.url = sub.url;
+    b.setAttribute('aria-expanded', String(!folded));
+    b.setAttribute('aria-label', `${folded ? 'Развернуть' : 'Свернуть'} серверы подписки «${sub.name}»`);
+    b.title = folded ? 'Показать серверы' : 'Свернуть';
+    li.classList.add('foldable');
+    li.append(b);
+    li.onclick = (e) => { if (!e.target.closest('a')) run(() => toggleSub(sub.url)); };
+  }
   if (sub.servers.length) return [li];
 
   // пустая подписка: почему и что можно сделать
