@@ -1,8 +1,9 @@
 // node test.mjs — конфиг mihomo, домены, маршрутизация (исполняется настоящий текст PAC), перенос настроек.
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import { readFileSync } from 'node:fs';
 import {
-  buildConfig, buildRules, buildPac, decide, parseList, parseSubs, norm, exportSettings, importSettings,
+  buildConfig, buildRules, buildPac, decide, parseList, parseSubs, norm, exportSettings, importSettings, newer, changelogSince,
   DEFAULTS, GROUP, AUTO, PORT,
 } from './extension/lib.js';
 
@@ -97,4 +98,16 @@ const evil = `LZK1:${Buffer.from(JSON.stringify({ subs: ['javascript:alert(1)'] 
 assert.throws(() => importSettings(evil), /ключ одного сервера|не похоже/);
 const junk = Buffer.from(JSON.stringify({ rest: 'all', webrtc: 'yes', vpnList: ['ok.com', 5], secret: 'x' })).toString('base64url');
 assert.throws(() => importSettings(`LZK1:${junk}`), /нет настроек/); // неверные типы и secret игнорируются
+// --- обновления
+assert.equal(newer('1.2.0', '1.1.0'), true);
+assert.equal(newer('1.10.0', '1.9.3'), true); // не строковое сравнение
+assert.equal(newer('1.1.0', '1.1.0'), false);
+assert.equal(newer('1.0.9', '1.1.0'), false);
+assert.equal(newer('2.0', '1.9.9'), true);
+const md = readFileSync(new URL('./CHANGELOG.md', import.meta.url), 'utf8');
+const notes = changelogSince(md, '1.1.0');
+assert.ok(notes.length >= 2 && notes.every((n) => n && !n.startsWith('-')), 'пункты 1.2.0');
+assert.deepEqual(changelogSince(md, '9.0.0'), []);
+assert.ok(changelogSince(md, '1.0.0').length > notes.length, 'несколько версий сразу');
+assert.deepEqual(changelogSince('## 1.3.0\r\n- **жирный** пункт\n## 1.2.0\n- старый', '1.2.0'), ['жирный пункт']);
 console.log('ok');

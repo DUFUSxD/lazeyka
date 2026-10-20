@@ -46,6 +46,31 @@ rules:
     Write-Host "Secret для расширения (уже в буфере обмена): $secret"
 }
 
+# Помощник для кнопок «Обновить» и «Запустить ядро» (native messaging, core/host.ps1).
+# Пускает только наше расширение. ID распакованного расширения Chromium считает из пути к папке:
+# SHA-256 от пути в UTF-16LE (буква диска заглавная), первые 16 байт, шестнадцатеричные цифры 0-f → буквы a-p.
+function Get-ExtId([string]$path) {
+    if ($path -match '^[a-z]:') { $path = $path.Substring(0, 1).ToUpper() + $path.Substring(1) }
+    $hash = [Security.Cryptography.SHA256]::Create().ComputeHash([Text.Encoding]::Unicode.GetBytes($path))
+    -join ($hash[0..15] | ForEach-Object { [char](97 + ($_ -shr 4)); [char](97 + ($_ -band 15)) })
+}
+$ext = Join-Path (Split-Path $dir -Parent) 'extension'
+if (Test-Path (Join-Path $dir 'host.bat')) {
+    # путь как в переменной и как на диске — на случай разного регистра букв
+    $ids = @($ext, (Get-Item $ext -ErrorAction SilentlyContinue).FullName) | Where-Object { $_ } | ForEach-Object { Get-ExtId $_ } | Select-Object -Unique
+    $hostJson = Join-Path $dir 'host.json'
+    $manifest = [ordered]@{
+        name = 'com.lazeyka.host'; description = 'Lazeyka helper: update and start core'; path = 'host.bat'; type = 'stdio'
+        allowed_origins = @($ids | ForEach-Object { "chrome-extension://$_/" })
+    }
+    [IO.File]::WriteAllText($hostJson, (ConvertTo-Json $manifest), (New-Object Text.UTF8Encoding $false))
+    foreach ($b in 'Google\Chrome', 'Microsoft\Edge', 'Chromium', 'Yandex\YandexBrowser', 'BraveSoftware\Brave-Browser') {
+        $key = "HKCU:\Software\$b\NativeMessagingHosts\com.lazeyka.host"
+        if (-not (Test-Path $key)) { New-Item $key -Force | Out-Null }
+        Set-Item $key $hostJson
+    }
+}
+
 if ($Autostart) {
     $cmd = "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$PSCommandPath`""
     Set-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' LazeykaMihomo $cmd
