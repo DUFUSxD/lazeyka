@@ -13,8 +13,10 @@ const notify = (id, title, message, buttons) => chrome.notifications.create(id, 
 // заодно следим за здоровьем серверов и предупреждаем при смене состояния, а не каждую минуту.
 // Запуски идут строго по очереди: таймер, горячая клавиша и старт браузера могут совпасть — параллельно
 // они удваивали уведомления, а запуск, начатый до переключения, ставил значку старое состояние.
+// Каждый шаг ограничен по времени: зависший запуск не должен останавливать все следующие.
 let syncQueue = Promise.resolve();
-const sync = () => (syncQueue = syncQueue.then(checkHealth, checkHealth));
+const step = () => Promise.race([checkHealth(), new Promise((r) => setTimeout(r, 90e3))]);
+const sync = () => (syncQueue = syncQueue.then(step, step));
 async function checkHealth() {
   const s = await load();
   const { on } = await proxyState();

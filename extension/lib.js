@@ -211,8 +211,12 @@ export function buildConfig(s) {
   };
 }
 
+// Ядро отвечает за миллисекунды; 30 с — с запасом на скачивание подписок при перезаливке конфига. Без предела
+// зависшее ядро (или чужая программа на этом порту) навсегда держало бы кнопки «занято» и очередь фоновых проверок.
+const CORE_TIMEOUT = 30e3;
 export async function api(path, secret, opts = {}) {
   const r = await fetch(API + path, {
+    signal: AbortSignal.timeout(CORE_TIMEOUT),
     ...opts,
     headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' },
   });
@@ -314,7 +318,7 @@ export async function refreshSubs(s, indices = s.subs.map((_, i) => i)) {
 
 // После рестарта mihomo грузит базовый config.yaml без нашей группы — заливаем заново.
 export async function ensureConfig(s) {
-  const r = await fetch(`${API}/proxies/${GROUP}`, { headers: { Authorization: `Bearer ${s.secret}` } });
+  const r = await fetch(`${API}/proxies/${GROUP}`, { headers: { Authorization: `Bearer ${s.secret}` }, signal: AbortSignal.timeout(CORE_TIMEOUT) });
   if (r.status === 404) await pushConfig(s);
   else if (!r.ok) throw new Error(`mihomo ${r.status}: ${await r.text()}`);
 }
@@ -529,7 +533,8 @@ export async function refreshMeta(s) {
   for (const url of s.subs) {
     if (!(await chrome.permissions.contains({ origins: [originOf(url)] }))) continue;
     try {
-      const r = await fetch(url, { cache: 'no-store', credentials: 'omit', headers: deviceHeaders(s.hwid) });
+      // панель, которую режет DPI, может молчать бесконечно — без предела данные провайдера не обновились бы больше никогда
+      const r = await fetch(url, { cache: 'no-store', credentials: 'omit', headers: deviceHeaders(s.hwid), signal: AbortSignal.timeout(15e3) });
       r.body?.cancel();
       if (r.ok) out[url] = { ...parseSubMeta(r.headers, url), fetchedAt: Date.now() };
     } catch { /* панель недоступна — оставим старое */ }

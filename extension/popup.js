@@ -111,6 +111,7 @@ async function run(fn) {
   } catch (e) {
     if (e instanceof TypeError && /fetch/i.test(e.message)) { h = null; showAlert('core'); renderPower(); }
     else if (/mihomo 401/.test(e.message)) showAlert('secret');
+    else if (e.name === 'TimeoutError') toast(t('Ядро не ответило вовремя — попробуй ещё раз'), 'err');
     else { console.error(e); toast(e.message, 'err'); }
   }
 }
@@ -487,7 +488,8 @@ async function renderNews() {
 async function pullMeta() {
   const r = await chrome.runtime.sendMessage({ meta: true });
   if (!r?.ok) return;
-  s = { ...s, ...(await chrome.storage.local.get(['subMeta', 'subs', 'subNames', 'subsViaVpn'])) }; // мог переехать адрес подписки
+  // мог переехать адрес подписки — вместе с ним service worker переписал и список свёрнутых
+  s = { ...s, ...(await chrome.storage.local.get(['subMeta', 'subs', 'subNames', 'subsViaVpn', 'collapsed'])) };
   renderNews();
   if (h) await refreshHealth();
 }
