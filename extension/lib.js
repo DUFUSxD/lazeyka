@@ -400,6 +400,10 @@ export async function updateBlocked() {
 export const RAW = 'https://raw.githubusercontent.com/DUFUSxD/lazeyka/main';
 export const HOST = 'com.lazeyka.host';
 export const UPDATE_CMD = `powershell -c "irm ${RAW}/install.ps1 | iex"`;
+// Из магазина ставится только расширение: ядро — тем же установщиком, но без «загрузи распакованное» в конце.
+export const STORE_INSTALL_CMD = `powershell -c "$env:LAZEYKA_STORE=1; irm ${RAW}/install.ps1 | iex"`;
+// Установлено из Chrome Web Store / Edge Add-ons, а не «Загрузить распакованное»: обновления приходят из магазина.
+export const fromStore = async () => (await chrome.management.getSelf()).installType !== 'development';
 
 export function newer(a, b) {
   const x = a.split('.').map(Number);

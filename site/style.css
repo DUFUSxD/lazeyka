@@ -85,5 +85,11 @@ tr:last-child td { border-bottom: 0; }
 .final { text-align: center; padding: 56px 0 72px; }
 .final p { color: var(--muted); margin: 0 0 22px; }
 .final .cta { justify-content: center; }
+.doc { max-width: 780px; padding-top: 40px; padding-bottom: 56px; }
+.doc h1 { font-size: clamp(30px, 4vw, 42px); line-height: 1.15; margin: 0 0 10px; }
+.doc h2 { font-size: 22px; margin: 34px 0 10px; }
+.doc li { margin: 6px 0; }
+.doc code { overflow-wrap: anywhere; }
+.muted { color: var(--muted); }
 footer { padding: 28px 0; border-top: 1px solid var(--border); font-size: 14px; color: var(--muted); }
 footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; }

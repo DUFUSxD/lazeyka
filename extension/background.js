@@ -1,6 +1,6 @@
 import {
   AUTO, load, ensureConfig, pushConfig, updateBlocked, proxyState, applyProxy, setBadge, health, selectServer, toggle, plainName,
-  checkUpdate, newer, hostCall, ensureHwid, subStatus, refreshMeta, migrateSub, subInterval,
+  checkUpdate, newer, hostCall, ensureHwid, subStatus, refreshMeta, migrateSub, subInterval, fromStore,
 } from './lib.js';
 import { t, plural, lang } from './i18n.js';
 
@@ -125,7 +125,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
 // Проверка обновлений по настройке; 0 — «только вручную»: никаких обращений к GitHub, даже при запуске.
 async function scheduleUpdates(check) {
   const { updateEvery } = await load();
-  if (!updateEvery) return chrome.alarms.clear('update');
+  // из магазина расширение обновляет сам браузер — GitHub не спрашиваем
+  if (!updateEvery || await fromStore()) return chrome.alarms.clear('update');
   chrome.alarms.create('update', { periodInMinutes: updateEvery });
   if (check) updates();
 }

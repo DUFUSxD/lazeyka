@@ -56,8 +56,10 @@ function Get-ExtId([string]$path) {
 }
 $ext = Join-Path (Split-Path $dir -Parent) 'extension'
 if (Test-Path (Join-Path $dir 'host.bat')) {
-    # ponytail: ID только для папки установщика; загрузили расширение из другой папки — popup подскажет
-    $ids = @(Get-ExtId $ext)
+    # ID для папки установщика плюс ID из магазинов (Chrome Web Store, Edge Add-ons) — у них свои, выдаёт магазин.
+    # ponytail: загрузили распакованное из другой папки — popup подскажет
+    $storeIds = @() # дописать ID после первой загрузки в магазин, например 'abcdefghijklmnopabcdefghijklmnop'
+    $ids = @(Get-ExtId $ext) + $storeIds
     $hostJson = Join-Path $dir 'host.json'
     $manifest = [ordered]@{
         name = 'com.lazeyka.host'; description = 'Lazeyka helper: update and start core'; path = 'host.bat'; type = 'stdio'

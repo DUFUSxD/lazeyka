@@ -21,12 +21,19 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $dst 'core\mi
 if ($LASTEXITCODE) { throw 'Ядро не установилось, см. ошибку выше.' }
 
 Write-Host ''
-Write-Host 'Готово. Осталось загрузить расширение в браузер:' -ForegroundColor Green
-Write-Host '  1. Открой chrome://extensions (Edge: edge://extensions, Яндекс: browser://extensions)'
-Write-Host '  2. Включи «Режим разработчика» -> «Загрузить распакованное» -> выбери папку:'
-Write-Host "     $dst\extension"
-Write-Host '  3. В расширении: Настройки -> вставь secret и ссылки на подписки -> Сохранить -> ВКЛ'
-Write-Host "     secret при первой установке уже в буфере обмена, он же лежит в $dst\core\config.yaml"
-Write-Host 'Дальше обновления — кнопкой «Обновить» прямо в окне Лазейки.'
-Write-Host 'Если ставил поверх старой версии — нажми ⟳ на карточке Лазейки в chrome://extensions.'
-explorer.exe (Join-Path $dst 'extension')
+if ($env:LAZEYKA_STORE) {
+    # расширение уже стоит из магазина — нужно было только ядро
+    Write-Host 'Готово. Ядро запущено — вернись в браузер и открой Лазейку.' -ForegroundColor Green
+    Write-Host "Secret при первой установке уже в буфере обмена, он же лежит в $dst\core\config.yaml"
+    Write-Host 'Done. The core is running — go back to the browser and open Lazeyka. The secret is in your clipboard.'
+} else {
+    Write-Host 'Готово. Осталось загрузить расширение в браузер:' -ForegroundColor Green
+    Write-Host '  1. Открой chrome://extensions (Edge: edge://extensions, Яндекс: browser://extensions)'
+    Write-Host '  2. Включи «Режим разработчика» -> «Загрузить распакованное» -> выбери папку:'
+    Write-Host "     $dst\extension"
+    Write-Host '  3. В расширении: Настройки -> вставь secret и ссылки на подписки -> Сохранить -> ВКЛ'
+    Write-Host "     secret при первой установке уже в буфере обмена, он же лежит в $dst\core\config.yaml"
+    Write-Host 'Дальше обновления — кнопкой «Обновить» прямо в окне Лазейки.'
+    Write-Host 'Если ставил поверх старой версии — нажми ⟳ на карточке Лазейки в chrome://extensions.'
+    explorer.exe (Join-Path $dst 'extension')
+}

@@ -27,4 +27,6 @@ jobs:
             exit 0
           fi
           node .github/release-notes.mjs "$v" > notes.md
-          gh release create "v$v" --title "Лазейка $v" --notes-file notes.md --target "$GITHUB_SHA"
+          # архив расширения: его загружают в Chrome Web Store / Edge Add-ons, им же можно поставить вручную
+          (cd extension && zip -qr "../lazeyka-extension-$v.zip" .)
+          gh release create "v$v" --title "Лазейка $v" --notes-file notes.md --target "$GITHUB_SHA" "lazeyka-extension-$v.zip"
