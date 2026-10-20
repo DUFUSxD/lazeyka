@@ -20,7 +20,7 @@
    ```powershell
    $storeIds = @('ID-из-Chrome-Web-Store', 'ID-из-Edge-Add-ons')
    ```
-   и выпустить версию. Без этого кнопка «Запустить ядро» у версии из магазина ответит «forbidden», хотя установщик ядро поставит и запустит.
+   (файл `core/store-ids.txt` — по одному ID на строку; его читают установщики Windows, macOS и Linux) и выпустить версию. Без этого кнопка «Запустить ядро» у версии из магазина ответит «forbidden», хотя установщик ядро поставит и запустит.
 5. **Отправить на проверку.** Обычно занимает от нескольких дней до пары недель; вопросы проверяющих чаще всего про `nativeMessaging` и `proxy` — ответы ниже.
 6. После публикации — добавить ссылки на магазины в README, на сайт и в FAQ («Будет ли Лазейка в магазине»).
 
@@ -47,7 +47,7 @@
 ### Подробное описание — RU
 
 ```
-Лазейка — VPN только для браузера через твои собственные серверы. Вставляешь ссылку на подписку, нажимаешь большую зелёную кнопку — и сайты открываются через VPN. Игры, мессенджеры и обновления Windows работают как обычно, напрямую.
+Лазейка — VPN только для браузера через твои собственные серверы. Вставляешь ссылку на подписку, нажимаешь большую зелёную кнопку — и сайты открываются через VPN. Игры, мессенджеры и обновления системы работают как обычно, напрямую.
 
 • Твои подписки: VLESS (в том числе Reality), VMess, Trojan, Shadowsocks, Hysteria2, TUIC — ссылки от провайдера, Telegram-бота или своей панели (Remnawave, 3x-ui, Marzban).
 • Правила по сайтам: свои списки «всегда через VPN» и «всегда напрямую», отдельный сервер для отдельного сайта. Готовые правила для России: российские сайты — напрямую, заблокированные — через VPN.
@@ -56,7 +56,7 @@
 • Трафик и срок подписки, уведомления о скором окончании, тест скорости серверов, поиск по странам.
 • Интерфейс на русском и английском.
 
-Важно: браузеры сами не умеют VLESS, поэтому Лазейке нужна бесплатная программа-ядро mihomo на компьютере (Windows 10/11). Она ставится одной командой — окно расширения её покажет.
+Важно: браузеры сами не умеют VLESS, поэтому Лазейке нужна бесплатная программа-ядро mihomo на компьютере (Windows 10/11, macOS или Linux). Она ставится одной командой — окно расширения её покажет.
 
 Без своих серверов, аккаунтов, аналитики и рекламы: подписки хранятся только на твоём компьютере. Открытый код (MIT): https://github.com/DUFUSxD/lazeyka
 ```
@@ -64,7 +64,7 @@
 ### Подробное описание — EN
 
 ```
-Lazeyka is a VPN for your browser only — through your own servers. Paste your subscription link, press the big green button, and websites open through your VPN. Games, messengers and Windows updates keep working directly.
+Lazeyka is a VPN for your browser only — through your own servers. Paste your subscription link, press the big green button, and websites open through your VPN. Games, messengers and system updates keep working directly.
 
 • Your own subscriptions: VLESS (including Reality), VMess, Trojan, Shadowsocks, Hysteria2, TUIC — links from your provider, a Telegram bot or your own panel (Remnawave, 3x-ui, Marzban).
 • Per-site rules: your own "always via VPN" and "always direct" lists, and a dedicated server for a specific site. Ready-made rules for users in Russia.
@@ -73,7 +73,7 @@ Lazeyka is a VPN for your browser only — through your own servers. Paste your 
 • Subscription traffic and expiry, expiry notifications, server speed test, search by country.
 • English and Russian interface.
 
-Note: browsers can't speak VLESS themselves, so Lazeyka needs the free mihomo core program on your computer (Windows 10/11). It installs with one command — the extension window shows it.
+Note: browsers can't speak VLESS themselves, so Lazeyka needs the free mihomo core program on your computer (Windows 10/11, macOS or Linux). It installs with one command — the extension window shows it.
 
 No servers, accounts, analytics or ads of our own: your subscriptions stay on your computer. Open source (MIT): https://github.com/DUFUSxD/lazeyka
 ```

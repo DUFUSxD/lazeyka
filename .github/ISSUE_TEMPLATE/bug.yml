@@ -39,10 +39,12 @@ body:
   - type: dropdown
     id: windows
     attributes:
-      label: Windows
+      label: Система · System
       options:
         - Windows 11
         - Windows 10
+        - macOS
+        - Linux
   - type: input
     id: panel
     attributes:

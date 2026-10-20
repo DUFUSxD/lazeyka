@@ -10,11 +10,16 @@ $zip = Join-Path $env:TEMP 'lazeyka.zip'
 $src = Join-Path $env:TEMP 'lazeyka-src'
 
 Write-Host 'Скачиваю Лазейку...'
-Invoke-WebRequest 'https://github.com/DUFUSxD/lazeyka/archive/refs/heads/main.zip' -OutFile $zip -UseBasicParsing
-Expand-Archive $zip $src -Force
 New-Item -ItemType Directory -Force $dst | Out-Null
-Copy-Item (Join-Path $src 'lazeyka-main\*') $dst -Recurse -Force
-Remove-Item $zip, $src -Recurse -Force
+if ($env:LAZEYKA_FROM) {
+    # проверки в CI: ставим из локальной копии ветки, а не из main
+    Copy-Item (Join-Path $env:LAZEYKA_FROM '*') $dst -Recurse -Force
+} else {
+    Invoke-WebRequest 'https://github.com/DUFUSxD/lazeyka/archive/refs/heads/main.zip' -OutFile $zip -UseBasicParsing
+    Expand-Archive $zip $src -Force
+    Copy-Item (Join-Path $src 'lazeyka-main\*') $dst -Recurse -Force
+    Remove-Item $zip, $src -Recurse -Force
+}
 
 # Отдельный процесс с Bypass: политика выполнения по умолчанию запрещает запуск .ps1-файлов
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $dst 'core\mihomo.ps1') -Autostart
@@ -35,5 +40,5 @@ if ($env:LAZEYKA_STORE) {
     Write-Host "     secret при первой установке уже в буфере обмена, он же лежит в $dst\core\config.yaml"
     Write-Host 'Дальше обновления — кнопкой «Обновить» прямо в окне Лазейки.'
     Write-Host 'Если ставил поверх старой версии — нажми ⟳ на карточке Лазейки в chrome://extensions.'
-    explorer.exe (Join-Path $dst 'extension')
+    if (-not $env:CI) { explorer.exe (Join-Path $dst 'extension') }
 }

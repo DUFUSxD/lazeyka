@@ -28,7 +28,7 @@
   "alternateName": "Lazeyka",
   "description": "VPN только для браузера через свои подписки VLESS/Reality, VMess, Trojan, Shadowsocks, Hysteria2 на ядре mihomo, с правилами по сайтам.",
   "applicationCategory": "BrowserApplication",
-  "operatingSystem": "Windows 10, Windows 11",
+  "operatingSystem": "Windows 10, Windows 11, macOS, Linux",
   "url": "https://dufusxd.github.io/lazeyka/",
   "downloadUrl": "https://github.com/DUFUSxD/lazeyka",
   "license": "https://opensource.org/licenses/MIT",
@@ -45,7 +45,7 @@
     { "@type": "Question", "name": "Можно ли пользоваться подпиской VLESS / Reality прямо в браузере?",
       "acceptedAnswer": { "@type": "Answer", "text": "Да. Браузеры VLESS не понимают, поэтому рядом работает маленькое ядро mihomo, а расширение Лазейка им управляет. Ставится одной командой, дальше всё в окне расширения." } },
     { "@type": "Question", "name": "Чем это удобнее v2rayN, Hiddify или Happ на компьютере?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Через VPN идёт только браузер: игры, торренты, обновления Windows и рабочие программы ходят напрямую. Госуслуги, банки и маркетплейсы открываются напрямую без настройки, а сервер можно выбрать отдельно для каждого сайта." } },
+      "acceptedAnswer": { "@type": "Answer", "text": "Через VPN идёт только браузер: игры, торренты, обновления системы и рабочие программы ходят напрямую. Госуслуги, банки и маркетплейсы открываются напрямую без настройки, а сервер можно выбрать отдельно для каждого сайта." } },
     { "@type": "Question", "name": "Подойдёт ли подписка от Remnawave, 3x-ui, Marzban или из Telegram-бота?",
       "acceptedAnswer": { "@type": "Answer", "text": "Да — любая ссылка на подписку вида https://… в формате Clash/mihomo или base64. Если у подписки лимит устройств, Лазейка считается отдельным устройством." } },
     { "@type": "Question", "name": "Это бесплатно?",
@@ -75,12 +75,12 @@
   <div class="wrap hero">
     <div>
       <h1>VPN только для браузера — <span>через твои подписки</span></h1>
-      <p class="lead">Вставь ссылку на подписку VLESS, Reality или Hysteria2, нажми большую зелёную кнопку — и сайты открываются через VPN. Игры, мессенджеры и обновления Windows работают как обычно, напрямую.</p>
+      <p class="lead">Вставь ссылку на подписку VLESS, Reality или Hysteria2, нажми большую зелёную кнопку — и сайты открываются через VPN. Игры, мессенджеры и обновления системы работают как обычно, напрямую.</p>
       <div class="cta">
         <a class="btn primary" href="#install">Установить за 5 минут</a>
         <a class="btn" href="https://github.com/DUFUSxD/lazeyka">★ GitHub</a>
       </div>
-      <p class="facts">Бесплатно · открытый код (MIT) · Windows 10 и 11 · Chrome, Edge, Яндекс.Браузер</p>
+      <p class="facts">Бесплатно · открытый код (MIT) · Windows, macOS, Linux · Chrome, Edge, Brave, Яндекс.Браузер</p>
     </div>
     <div class="shot"><img src="images/demo.gif" width="420" height="723" alt="Окно Лазейки: включение, сворачивание подписки, выбор сервера, настройки"></div>
   </div>
@@ -136,9 +136,11 @@
     <div class="wrap">
       <h2>Установка — 5 минут</h2>
       <ol class="steps">
-        <li><h3>Поставь ядро одной командой</h3><p>Нажми Win + X → «Терминал», вставь команду и нажми Enter. Через полминуты появится зелёное «Готово».</p>
-          <div class="cmd"><code id="cmd">irm https://raw.githubusercontent.com/DUFUSxD/lazeyka/main/install.ps1 | iex</code><button type="button" data-copy="cmd">Скопировать</button></div></li>
-        <li><h3>Добавь расширение в браузер</h3><p>На странице расширений включи «Режим разработчика», нажми «Загрузить распакованное» и выбери папку <code>%LOCALAPPDATA%\Lazeyka\extension</code>.</p></li>
+        <li><h3>Поставь ядро одной командой</h3><p>Windows: нажми Win + X → «Терминал», вставь команду и нажми Enter. Через полминуты появится зелёное «Готово». Права администратора не нужны.</p>
+          <div class="cmd"><code id="cmd">irm https://raw.githubusercontent.com/DUFUSxD/lazeyka/main/install.ps1 | iex</code><button type="button" data-copy="cmd">Скопировать</button></div>
+          <p>macOS и Linux: открой терминал (на Mac — Cmd + Пробел → «Терминал») и выполни:</p>
+          <div class="cmd"><code id="cmd-sh">curl -fsSL https://raw.githubusercontent.com/DUFUSxD/lazeyka/main/install.sh | sh</code><button type="button" data-copy="cmd-sh">Скопировать</button></div></li>
+        <li><h3>Добавь расширение в браузер</h3><p>На странице расширений включи «Режим разработчика», нажми «Загрузить распакованное» и выбери папку <code>%LOCALAPPDATA%\Lazeyka\extension</code> (на macOS и Linux — <code>~/Lazeyka/extension</code>).</p></li>
         <li><h3>Вставь secret и подписку</h3><p>Secret уже в буфере обмена после установки. Вставь его и ссылку на подписку в настройках, нажми «Сохранить» и большую кнопку.</p></li>
       </ol>
       <p>Подробная инструкция со скриншотами — <a href="https://github.com/DUFUSxD/lazeyka#установка--5-минут">в README на GitHub</a>.</p>
@@ -149,11 +151,12 @@
     <div class="wrap">
       <h2>Частые вопросы</h2>
       <details><summary>Можно ли пользоваться подпиской VLESS / Reality прямо в браузере?</summary><p>Да. Браузеры VLESS не понимают — расширениям доступны только HTTP- и SOCKS-прокси, — поэтому рядом работает маленькое ядро mihomo, а Лазейка им управляет. Ставится одной командой, дальше всё в окне расширения.</p></details>
-      <details><summary>Чем это удобнее v2rayN, Hiddify или Happ на компьютере?</summary><p>Через VPN идёт только браузер: игры, торренты, обновления Windows и рабочие программы ходят напрямую и не тратят трафик подписки. Госуслуги, банки и маркетплейсы открываются напрямую без настройки, а сервер можно выбрать отдельно для каждого сайта.</p></details>
+      <details><summary>Чем это удобнее v2rayN, Hiddify или Happ на компьютере?</summary><p>Через VPN идёт только браузер: игры, торренты, обновления системы и рабочие программы ходят напрямую и не тратят трафик подписки. Госуслуги, банки и маркетплейсы открываются напрямую без настройки, а сервер можно выбрать отдельно для каждого сайта.</p></details>
       <details><summary>Подойдёт ли подписка от Remnawave, 3x-ui, Marzban или из Telegram-бота?</summary><p>Да — любая ссылка на подписку вида https://… в формате Clash/mihomo или base64. Если у подписки лимит устройств, Лазейка считается отдельным устройством, как телефон.</p></details>
       <details><summary>Это бесплатно?</summary><p>Да, Лазейка бесплатная и с открытым кодом (лицензия MIT). Платишь только за свою подписку — тому, у кого её берёшь.</p></details>
       <details><summary>Куда уходят мои подписки?</summary><p>Никуда: они хранятся в браузере и в ядре на твоём компьютере. Серверов, аккаунтов и статистики у Лазейки нет.</p></details>
-      <details><summary>Есть ли версия для Mac, Linux или телефона?</summary><p>Пока только Windows 10/11 и браузеры на Chromium: Chrome, Edge, Яндекс.Браузер, Brave.</p></details>
+      <details><summary>Есть ли версия для Mac, Linux или телефона?</summary><p>macOS и Linux — да, команда установки выше. Нужен браузер на Chromium: Chrome, Edge, Brave, Яндекс.Браузер. На телефоне расширения не умеют управлять прокси — там подойдут приложения на том же ядре mihomo, например FlClash.</p></details>
+      <details><summary>Нужны ли права администратора?</summary><p>Нет. Всё ставится только для твоего пользователя, а ядро принимает подключения только с этого же компьютера.</p></details>
     </div>
   </section>
 

@@ -1,6 +1,6 @@
 # Диагностика
 
-Для пользовательских проблем есть таблица в [главном README](../README.md#если-что-то-не-работает). Здесь — как разобраться руками, что происходит внутри. Все команды — в PowerShell.
+Для пользовательских проблем есть таблица в [главном README](../README.md#если-что-то-не-работает). Здесь — как разобраться руками, что происходит внутри. Команды — в PowerShell (Windows); для macOS и Linux — [свой раздел](#macos-и-linux) в конце.
 
 ## Удобные переменные
 
@@ -119,3 +119,36 @@ try { Invoke-RestMethod -Method Put http://127.0.0.1:19090/providers/proxies/sub
   ```
   `controlled_by_other_extensions` — включено другое VPN-/прокси-расширение. Его можно найти по `chrome://extensions`: у таких расширений есть право «Изменять настройки прокси».
 - **Сбросить прокси браузера**, если что-то застряло: выключить Лазейку кнопкой или удалить расширение — браузер сам вернёт системные настройки.
+
+## macOS и Linux
+
+```sh
+L=~/Lazeyka
+secret=$(sed -n 's/^secret: "\(.*\)"/\1/p' $L/core/config.yaml)
+curl -s -H "Authorization: Bearer $secret" http://127.0.0.1:19090/version   # ядро отвечает?
+```
+
+Ядро и автозапуск:
+
+```sh
+# macOS
+launchctl print gui/$(id -u)/com.lazeyka.mihomo | grep -E 'state|last exit'
+launchctl kickstart -k gui/$(id -u)/com.lazeyka.mihomo      # перезапустить
+# Linux
+systemctl --user status lazeyka-mihomo
+journalctl --user -u lazeyka-mihomo -n 50                   # лог ядра
+systemctl --user restart lazeyka-mihomo
+```
+
+Чтобы увидеть ошибку запуска глазами, останови службу и запусти ядро руками: `$L/core/mihomo -d $L/core`. Всё заново (скачать ядро, прописать помощника и автозапуск) — `sh $L/core/mihomo.sh`.
+
+Помощник:
+
+```sh
+cat ~/Library/Application\ Support/Google/Chrome/NativeMessagingHosts/com.lazeyka.host.json   # macOS
+cat ~/.config/google-chrome/NativeMessagingHosts/com.lazeyka.host.json                          # Linux
+printf '\016\000\000\000{"cmd":"ping"}' | sh $L/core/host.sh | tail -c +5; echo
+# {"ok":true,"version":"…"} — помощник работает (первые 4 байта ответа — длина, tail их отрезает)
+```
+
+Для других браузеров вместо `Google/Chrome` / `google-chrome` — их папка (`Microsoft Edge`, `BraveSoftware/Brave-Browser`, `Yandex/YandexBrowser`, `microsoft-edge`, `yandex-browser`, …). `Specified native messaging host not found` — файла в папке браузера нет (выполни `sh $L/core/mihomo.sh`) или браузер из Snap / Flatpak. `Access … forbidden` — расширение загружено не из `$L/extension`.

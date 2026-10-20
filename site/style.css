@@ -69,6 +69,7 @@ tr:last-child td { border-bottom: 0; }
 
 .steps { counter-reset: s; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; padding: 0; margin: 0; list-style: none; }
 .steps p code { overflow-wrap: anywhere; }
+.steps .cmd + p { margin-top: 14px; }
 .steps li { counter-increment: s; position: relative; padding: 20px 22px 20px 70px; border-radius: 16px; background: var(--card); border: 1px solid var(--border); }
 .steps li::before { content: counter(s); position: absolute; left: 22px; top: 20px; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; font-weight: 700; }
 .steps h3 { margin: 2px 0 6px; font-size: 18px; }

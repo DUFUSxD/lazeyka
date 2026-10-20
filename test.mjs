@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import {
   buildConfig, buildRules, buildPac, decide, parseList, parseSubs, plainName, subName, subError, norm, exportSettings, importSettings, newer, changelogSince,
-  subStatus, sortServers, parseSubMeta, decodeText, migrateSub, deviceHeaders, iconUrls,
+  subStatus, sortServers, parseSubMeta, decodeText, migrateSub, deviceHeaders, iconUrls, osInfo,
   DEFAULTS, GROUP, AUTO, PORT, SPEED, SPEED_HOST,
 } from './extension/lib.js';
 import { EN, t, plural } from './extension/i18n.js';
@@ -236,6 +236,32 @@ assert.deepEqual(changelogSince('## 1.3.0\r\n- **жирный** пункт\n## 1
 assert.equal(t('{0} из {1} ГБ', 1, 2), '1 из 2 ГБ');
 assert.deepEqual([1, 2, 5, 11, 12, 21, 22, 25, 111].map((n) => plural(n, 'сервер|сервера|серверов')),
   ['1 сервер', '2 сервера', '5 серверов', '11 серверов', '12 серверов', '21 сервер', '22 сервера', '25 серверов', '111 серверов']);
+
+// --- команды и тексты под систему: для Windows всё буква в букву как до поддержки macOS и Linux
+{
+  const W = osInfo('win');
+  assert.equal(W.install, 'powershell -c "irm https://raw.githubusercontent.com/DUFUSxD/lazeyka/main/install.ps1 | iex"');
+  assert.equal(W.storeInstall, 'powershell -c "$env:LAZEYKA_STORE=1; irm https://raw.githubusercontent.com/DUFUSxD/lazeyka/main/install.ps1 | iex"');
+  assert.equal(W.core, 'powershell -ExecutionPolicy Bypass -File "%LOCALAPPDATA%\\Lazeyka\\core\\mihomo.ps1"');
+  const p = (o, ...a) => [o.dir, ...a].join(o.sep);
+  assert.equal(t('Нажми «Запустить ядро». Если не сработает — {0}, вставь команду ниже и Enter.', t(W.runMid)),
+    'Нажми «Запустить ядро». Если не сработает — Win+R, вставь команду ниже и Enter.');
+  assert.equal(t('Скопируй его заново из {0} (строка secret:).', p(W, 'core', 'config.yaml')),
+    'Скопируй его заново из %LOCALAPPDATA%\\Lazeyka\\core\\config.yaml (строка secret:).');
+  assert.equal(t('{0}, вставь команду и Enter — дальше обновления будут в один клик. Когда окно закроется, нажми «Перезапустить».', t(W.runStart)),
+    'Нажми Win+R, вставь команду и Enter — дальше обновления будут в один клик. Когда окно закроется, нажми «Перезапустить».');
+  assert.equal(t('Команда скопирована: {0} → вставить → Enter', t(W.runShort)), 'Команда скопирована: Win+R → вставить → Enter');
+  assert.equal(t('Выдаёт установщик. Он же лежит в {0}', p(W, 'core', 'config.yaml')), 'Выдаёт установщик. Он же лежит в %LOCALAPPDATA%\\Lazeyka\\core\\config.yaml');
+  for (const os of ['mac', 'linux']) {
+    const o = osInfo(os);
+    assert.equal(o.install, 'curl -fsSL https://raw.githubusercontent.com/DUFUSxD/lazeyka/main/install.sh | sh');
+    assert.equal(p(o, 'core', 'config.yaml'), '~/Lazeyka/core/config.yaml');
+    assert.ok(EN[o.runMid] && EN[o.runStart] && EN[o.runShort], `перевод фраз для ${os}`);
+  }
+  // стартовый config.yaml ядра одинаковый на всех системах (порты и правило из lib.js)
+  const cfgOf = (f, re) => readFileSync(new URL(f, import.meta.url), 'utf8').replace(/\r\n/g, '\n').match(re)[1].replace(/\$secret/, 'S');
+  assert.equal(cfgOf('./core/mihomo.sh', /cat > "\$cfg" <<EOF\n([\s\S]*?)\nEOF/), cfgOf('./core/mihomo.ps1', /@"\n([\s\S]*?)\n"@/));
+}
 
 // --- поиск по стране: названия — из Intl по коду (он же флаг), плюс разговорные синонимы
 {

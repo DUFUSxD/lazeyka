@@ -1,22 +1,21 @@
 import {
   GROUP, AUTO, CONTROLLER, load, norm, parseList, parseSubs, plainName, subName, buildRules, decide, isLan,
   pushConfig, ensureConfig, health, selectServer, testGroup, proxyState, applyProxy, toggle, updateBlocked, refreshSubs, viaVpn,
-  exportSettings, importSettings, checkUpdate, newer, UPDATE_CMD, STORE_INSTALL_CMD, PING_OPTIONS, UPDATE_OPTIONS, SORT_OPTIONS,
-  ensureHwid, subStatus, sortServers, speedTest, subOrigins, iconUrls, LANG_OPTIONS, fromStore,
+  exportSettings, importSettings, checkUpdate, newer, PING_OPTIONS, UPDATE_OPTIONS, SORT_OPTIONS,
+  ensureHwid, subStatus, sortServers, speedTest, subOrigins, iconUrls, LANG_OPTIONS, fromStore, osInfo,
 } from './lib.js';
 import { t, plural, lang, translateDom } from './i18n.js';
 import { serverFilter } from './countries.js';
 
 const $ = (id) => document.getElementById(id);
 const el = (tag, className = '', textContent = '') => Object.assign(document.createElement(tag), { className, textContent });
-const CORE_CMD = 'powershell -ExecutionPolicy Bypass -File "%LOCALAPPDATA%\\Lazeyka\\core\\mihomo.ps1"';
 const VERSION = chrome.runtime.getManifest().version;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // помощник (core/host.ps1) вызывается через service worker — он живёт, даже если popup закроют
 const host = (cmd) => chrome.runtime.sendMessage({ host: cmd });
 // Почему помощник недоступен — человеческими словами; null — помощник есть, ошибка другая.
 function hostProblem(e = '') {
-  if (/forbidden/i.test(e)) return t('Лазейка загружена не из папки установщика (%LOCALAPPDATA%\\Lazeyka\\extension), поэтому кнопка не работает. Загрузи расширение оттуда или выполни команду.');
+  if (/forbidden/i.test(e)) return t('Лазейка загружена не из папки установщика ({0}), поэтому кнопка не работает. Загрузи расширение оттуда или выполни команду.', path('extension'));
   if (/not found/i.test(e)) return t('Обновление в один клик заработает после этой версии — сейчас нужно один раз выполнить команду.');
   return null;
 }
@@ -28,7 +27,14 @@ translateDom(document.body);
 s.hwid ||= await ensureHwid(); // нужен в конфиге ядра, если popup открыли раньше, чем проснулся service worker
 // из магазина: обновления приходят из магазина, а ядра может ещё не быть — оно ставится командой установщика
 const STORE = await fromStore();
-const INSTALL_CMD = STORE ? STORE_INSTALL_CMD : UPDATE_CMD;
+// Windows, macOS или Linux: команды, пути и как открыть место для команды (Win+R или терминал)
+const OS = osInfo((await chrome.runtime.getPlatformInfo()).os);
+const path = (...parts) => [OS.dir, ...parts].join(OS.sep);
+const CORE_CMD = OS.core;
+const INSTALL_CMD = STORE ? OS.storeInstall : OS.install;
+$('secretHint').textContent = t('Выдаёт установщик. Он же лежит в {0}', path('core', 'config.yaml'));
+$('updHint').textContent = t('{0}, вставь команду и Enter — дальше обновления будут в один клик. Когда окно закроется, нажми «Перезапустить».', t(OS.runStart));
+const copied = () => toast(t('Команда скопирована: {0} → вставить → Enter', t(OS.runShort)));
 let on = false;
 let h;                 // сводка health(); undefined — ещё не загрузили, null — ядро недоступно
 let rest = s.rest;     // черновик «Остальные сайты» в настройках
@@ -51,12 +57,14 @@ function toast(text, kind = '') {
   toastTimer = setTimeout(() => { bar.className = 'toast'; }, kind === 'err' ? 5000 : 2500);
 }
 
+// тексты с подстановками (Win+R или терминал, пути) переводятся сразу; showAlert переводит остальные — повторный t() безвреден
 const ALERTS = {
   setup: ['Почти готово', 'Открой настройки: вставь secret из установщика и ссылку на подписку.', null, 'Открыть настройки'],
   core: STORE
-    ? ['Ядро mihomo не запущено', 'Лазейке нужна программа-ядро на компьютере. Нажми «Запустить ядро»; если ядро ещё не установлено — Win+R, вставь команду ниже и Enter.', STORE_INSTALL_CMD, 'Запустить ядро', 'Скопировать команду']
-    : ['Ядро mihomo не запущено', 'Нажми «Запустить ядро». Если не сработает — Win+R, вставь команду ниже и Enter.', CORE_CMD, 'Запустить ядро', 'Скопировать команду'],
-  secret: ['Неверный secret', 'Скопируй его заново из %LOCALAPPDATA%\\Lazeyka\\core\\config.yaml (строка secret:).', null, 'Открыть настройки'],
+    ? ['Ядро mihomo не запущено', t('Лазейке нужна программа-ядро на компьютере. Нажми «Запустить ядро»; если ядро ещё не установлено — {0}, вставь команду ниже и Enter.', t(OS.runMid)),
+      OS.storeInstall, 'Запустить ядро', 'Скопировать команду']
+    : ['Ядро mihomo не запущено', t('Нажми «Запустить ядро». Если не сработает — {0}, вставь команду ниже и Enter.', t(OS.runMid)), CORE_CMD, 'Запустить ядро', 'Скопировать команду'],
+  secret: ['Неверный secret', t('Скопируй его заново из {0} (строка secret:).', path('core', 'config.yaml')), null, 'Открыть настройки'],
   other: ['Прокси занят другим расширением', 'Отключи другие VPN- и прокси-расширения: прокси в браузере может держать только одно расширение.', null, 'Открыть расширения'],
   policy: ['Прокси заблокирован политикой', 'Администратор этого компьютера запретил расширениям менять прокси.', null, null],
 };
@@ -84,7 +92,7 @@ function showAlert(kind) {
   $('alertBtn2').textContent = ALERTS[kind][4] ? t(ALERTS[kind][4]) : '';
 }
 $('alertBtn').onclick = () => run(() => busy($('alertBtn'), async () => ALERT_ACTIONS[alertKind]?.()));
-$('alertBtn2').onclick = () => navigator.clipboard.writeText($('alertCode').textContent).then(() => toast(t('Команда скопирована: Win+R → вставить → Enter')));
+$('alertBtn2').onclick = () => navigator.clipboard.writeText($('alertCode').textContent).then(copied);
 
 async function startCore() {
   const r = await host('start');
@@ -93,7 +101,7 @@ async function startCore() {
     const missing = /not found/i.test(r?.error);
     await navigator.clipboard.writeText(missing ? INSTALL_CMD : CORE_CMD).catch(() => {});
     const why = /forbidden/i.test(r?.error) ? hostProblem(r.error) : missing ? t('Ядро ещё не установлено.') : t('Не получилось: {0}.', r?.error);
-    throw new Error(t('{0} Пока — Win+R, вставь (команда уже скопирована), Enter', why));
+    throw new Error(t('{0} Пока — {1}, вставь (команда уже скопирована), Enter', why, t(OS.runMid)));
   }
   toast(t('Запускаю ядро…'));
   for (let i = 0; i < 20; i++) {
@@ -101,7 +109,7 @@ async function startCore() {
     try { await render(); } catch { continue; }
     if (alertKind !== 'core') return toast(t('Ядро запущено ✓'));
   }
-  throw new Error(t('Ядро не ответило. Попробуй команду: Win+R, вставь, Enter'));
+  throw new Error(t('Ядро не ответило. Попробуй команду: {0}, вставь, Enter', t(OS.runMid)));
 }
 
 // Все действия через run: понятные сообщения вместо исключений.
@@ -579,7 +587,7 @@ async function renderUpdate() {
 function showManualUpdate(err) {
   $('upd').hidden = false;
   $('updManual').hidden = false;
-  $('updCmd').textContent = UPDATE_CMD;
+  $('updCmd').textContent = OS.install;
   $('updErr').textContent = hostProblem(err) ?? t('Не получилось обновить автоматически: {0}', err);
 }
 
@@ -599,7 +607,7 @@ $('updLater').onclick = async () => {
   await chrome.storage.local.set({ dismissedVersion: update?.latest });
   $('upd').hidden = true;
 };
-$('updCopy').onclick = () => navigator.clipboard.writeText(UPDATE_CMD).then(() => toast(t('Команда скопирована: Win+R → вставить → Enter')));
+$('updCopy').onclick = () => navigator.clipboard.writeText(OS.install).then(copied);
 $('updReload').onclick = () => chrome.runtime.reload();
 $('checkUpd').onclick = () => run(() => busy($('checkUpd'), async () => {
   const u = await checkUpdate();
