@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Лазейка — VPN только для браузера через свои подписки VLESS, Reality, Hysteria2</title>
+<meta name="description" content="Бесплатное расширение для Chrome, Edge и Яндекс.Браузера: VPN только для браузера через твою подписку VLESS/Reality, VMess, Trojan, Shadowsocks, Hysteria2 на ядре mihomo. Госуслуги и банки — напрямую, заблокированное — через VPN.">
+<link rel="canonical" href="https://dufusxd.github.io/lazeyka/">
+<link rel="alternate" hreflang="ru" href="https://dufusxd.github.io/lazeyka/">
+<link rel="alternate" hreflang="en" href="https://dufusxd.github.io/lazeyka/en/">
+<link rel="alternate" hreflang="x-default" href="https://dufusxd.github.io/lazeyka/">
+<link rel="icon" href="images/icon128.png">
+<meta name="theme-color" content="#14171c">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:site_name" content="Лазейка">
+<meta property="og:title" content="Лазейка — VPN только для браузера через свои подписки">
+<meta property="og:description" content="Вставь ссылку на подписку VLESS/Reality, нажми кнопку — сайты открываются через VPN, а всё остальное на компьютере работает напрямую.">
+<meta property="og:url" content="https://dufusxd.github.io/lazeyka/">
+<meta property="og:image" content="https://dufusxd.github.io/lazeyka/images/hero.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Лазейка",
+  "alternateName": "Lazeyka",
+  "description": "VPN только для браузера через свои подписки VLESS/Reality, VMess, Trojan, Shadowsocks, Hysteria2 на ядре mihomo, с правилами по сайтам.",
+  "applicationCategory": "BrowserApplication",
+  "operatingSystem": "Windows 10, Windows 11",
+  "url": "https://dufusxd.github.io/lazeyka/",
+  "downloadUrl": "https://github.com/DUFUSxD/lazeyka",
+  "license": "https://opensource.org/licenses/MIT",
+  "inLanguage": ["ru", "en"],
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "RUB" },
+  "screenshot": "https://dufusxd.github.io/lazeyka/images/main.png"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    { "@type": "Question", "name": "Можно ли пользоваться подпиской VLESS / Reality прямо в браузере?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Да. Браузеры VLESS не понимают, поэтому рядом работает маленькое ядро mihomo, а расширение Лазейка им управляет. Ставится одной командой, дальше всё в окне расширения." } },
+    { "@type": "Question", "name": "Чем это удобнее v2rayN, Hiddify или Happ на компьютере?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Через VPN идёт только браузер: игры, торренты, обновления Windows и рабочие программы ходят напрямую. Госуслуги, банки и маркетплейсы открываются напрямую без настройки, а сервер можно выбрать отдельно для каждого сайта." } },
+    { "@type": "Question", "name": "Подойдёт ли подписка от Remnawave, 3x-ui, Marzban или из Telegram-бота?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Да — любая ссылка на подписку вида https://… в формате Clash/mihomo или base64. Если у подписки лимит устройств, Лазейка считается отдельным устройством." } },
+    { "@type": "Question", "name": "Это бесплатно?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Да, Лазейка бесплатная и с открытым кодом (лицензия MIT). Платишь только за свою подписку." } },
+    { "@type": "Question", "name": "Куда уходят мои подписки?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Никуда: они хранятся в браузере и в ядре на твоём компьютере. Серверов, аккаунтов и статистики у Лазейки нет." } }
+  ]
+}
+</script>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="images/icon128.png" alt="">Лазейка</a>
+    <nav class="nav" aria-label="Разделы">
+      <a href="#features">Возможности</a>
+      <a href="#compare">Сравнение</a>
+      <a href="#install">Установка</a>
+      <a href="#faq">Вопросы</a>
+      <a href="https://github.com/DUFUSxD/lazeyka">GitHub</a>
+    </nav>
+    <a class="lang" href="en/" hreflang="en" lang="en">English</a>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <div>
+      <h1>VPN только для браузера — <span>через твои подписки</span></h1>
+      <p class="lead">Вставь ссылку на подписку VLESS, Reality или Hysteria2, нажми большую зелёную кнопку — и сайты открываются через VPN. Игры, мессенджеры и обновления Windows работают как обычно, напрямую.</p>
+      <div class="cta">
+        <a class="btn primary" href="#install">Установить за 5 минут</a>
+        <a class="btn" href="https://github.com/DUFUSxD/lazeyka">★ GitHub</a>
+      </div>
+      <p class="facts">Бесплатно · открытый код (MIT) · Windows 10 и 11 · Chrome, Edge, Яндекс.Браузер</p>
+    </div>
+    <div class="shot"><img src="images/demo.gif" width="420" height="723" alt="Окно Лазейки: включение, сворачивание подписки, выбор сервера, настройки"></div>
+  </div>
+
+  <ul class="wrap protocols" aria-label="Поддерживается">
+    <li>VLESS</li><li>Reality</li><li>VMess</li><li>Trojan</li><li>Shadowsocks</li><li>Hysteria2</li><li>TUIC</li>
+    <li>Remnawave</li><li>3x-ui</li><li>Marzban</li>
+  </ul>
+
+  <section id="features">
+    <div class="wrap">
+      <h2>Что умеет</h2>
+      <div class="grid">
+        <div class="card"><div class="ico">🧭</div><h3>Только браузер</h3><p>Через VPN идут сайты, а не весь компьютер: игры, торренты и рабочие программы не тратят трафик подписки.</p></div>
+        <div class="card"><div class="ico">🏦</div><h3>Госуслуги и банки — напрямую</h3><p>Российские сайты открываются без VPN, заблокированные в РФ (~1200, список обновляется сам) — через VPN.</p></div>
+        <div class="card"><div class="ico">🎯</div><h3>Правила по сайтам</h3><p>Свои списки «всегда через VPN» и «всегда напрямую» и отдельный сервер для сайта — например, ChatGPT через США.</p></div>
+        <div class="card"><div class="ico">⚡</div><h3>Авто-выбор сервера</h3><p>Сам выбирает самый быстрый живой сервер и переключается, если текущий упал или его заблокировали.</p></div>
+        <div class="card"><div class="ico">🔒</div><h3>Без утечек</h3><p>Если ядро упало, сайты через VPN не откроются, а не пойдут с твоим настоящим адресом. WebRTC тоже закрыт.</p></div>
+        <div class="card"><div class="ico">📊</div><h3>Трафик и срок подписки</h3><p>Видно, сколько израсходовано и до какого числа действует подписка; уведомления за 3 дня до конца и при 90% трафика.</p></div>
+        <div class="card"><div class="ico">🚀</div><h3>Тест скорости</h3><p>Скорость любого сервера в Мбит/с — не переключаясь на него. Плюс пинг, сортировка и поиск по странам.</p></div>
+        <div class="card"><div class="ico">🔄</div><h3>Обновление в один клик</h3><p>Новая версия ставится кнопкой «Обновить» прямо в окне. Интерфейс на русском и английском.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap gallery">
+      <figure><img src="images/main.png" width="720" height="1300" alt="Лазейка включена: карточка открытого сайта и серверы по подпискам" loading="lazy"><figcaption>Карточка сайта и серверы по подпискам</figcaption></figure>
+      <figure><img src="images/site-server.png" width="720" height="1300" alt="Свой сервер для сайта" loading="lazy"><figcaption>Свой сервер для сайта</figcaption></figure>
+      <figure><img src="images/settings-rules.png" width="720" height="1210" alt="Настройки: какие сайты через VPN" loading="lazy"><figcaption>Какие сайты через VPN</figcaption></figure>
+    </div>
+  </section>
+
+  <section id="compare">
+    <div class="wrap">
+      <h2>Чем отличается от v2rayN, Hiddify и VPN-расширений</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th></th><th>Лазейка</th><th>v2rayN, Hiddify, Happ на компьютере</th><th>VPN-расширения из магазина</th></tr></thead>
+          <tbody>
+            <tr><th>Что идёт через VPN</th><td>только браузер, по правилам для сайтов</td><td>весь компьютер или все программы с системным прокси</td><td>только браузер</td></tr>
+            <tr><th>Чьи серверы</th><td><b>твои подписки</b></td><td>твои подписки</td><td>серверы самого расширения</td></tr>
+            <tr><th>Госуслуги и банки</th><td>напрямую — уже настроено</td><td>можно настроить правилами</td><td>обычно тоже через VPN</td></tr>
+            <tr><th>Протоколы</th><td>VLESS/Reality, VMess, Trojan, Shadowsocks, Hysteria2, TUIC</td><td>те же</td><td>обычно только свой</td></tr>
+            <tr><th>Сервер для отдельного сайта</th><td>в два клика</td><td>в правилах маршрутизации</td><td>редко</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <h2>Установка — 5 минут</h2>
+      <ol class="steps">
+        <li><h3>Поставь ядро одной командой</h3><p>Нажми Win + X → «Терминал», вставь команду и нажми Enter. Через полминуты появится зелёное «Готово».</p>
+          <div class="cmd"><code id="cmd">irm https://raw.githubusercontent.com/DUFUSxD/lazeyka/main/install.ps1 | iex</code><button type="button" data-copy="cmd">Скопировать</button></div></li>
+        <li><h3>Добавь расширение в браузер</h3><p>На странице расширений включи «Режим разработчика», нажми «Загрузить распакованное» и выбери папку <code>%LOCALAPPDATA%\Lazeyka\extension</code>.</p></li>
+        <li><h3>Вставь secret и подписку</h3><p>Secret уже в буфере обмена после установки. Вставь его и ссылку на подписку в настройках, нажми «Сохранить» и большую кнопку.</p></li>
+      </ol>
+      <p>Подробная инструкция со скриншотами — <a href="https://github.com/DUFUSxD/lazeyka#установка--5-минут">в README на GitHub</a>.</p>
+    </div>
+  </section>
+
+  <section id="faq" class="faq">
+    <div class="wrap">
+      <h2>Частые вопросы</h2>
+      <details><summary>Можно ли пользоваться подпиской VLESS / Reality прямо в браузере?</summary><p>Да. Браузеры VLESS не понимают — расширениям доступны только HTTP- и SOCKS-прокси, — поэтому рядом работает маленькое ядро mihomo, а Лазейка им управляет. Ставится одной командой, дальше всё в окне расширения.</p></details>
+      <details><summary>Чем это удобнее v2rayN, Hiddify или Happ на компьютере?</summary><p>Через VPN идёт только браузер: игры, торренты, обновления Windows и рабочие программы ходят напрямую и не тратят трафик подписки. Госуслуги, банки и маркетплейсы открываются напрямую без настройки, а сервер можно выбрать отдельно для каждого сайта.</p></details>
+      <details><summary>Подойдёт ли подписка от Remnawave, 3x-ui, Marzban или из Telegram-бота?</summary><p>Да — любая ссылка на подписку вида https://… в формате Clash/mihomo или base64. Если у подписки лимит устройств, Лазейка считается отдельным устройством, как телефон.</p></details>
+      <details><summary>Это бесплатно?</summary><p>Да, Лазейка бесплатная и с открытым кодом (лицензия MIT). Платишь только за свою подписку — тому, у кого её берёшь.</p></details>
+      <details><summary>Куда уходят мои подписки?</summary><p>Никуда: они хранятся в браузере и в ядре на твоём компьютере. Серверов, аккаунтов и статистики у Лазейки нет.</p></details>
+      <details><summary>Есть ли версия для Mac, Linux или телефона?</summary><p>Пока только Windows 10/11 и браузеры на Chromium: Chrome, Edge, Яндекс.Браузер, Brave.</p></details>
+    </div>
+  </section>
+
+  <div class="wrap final">
+    <h2>Попробуй</h2>
+    <p>Если Лазейка пригодилась — поставь звезду на GitHub: так её проще найти другим.</p>
+    <div class="cta">
+      <a class="btn primary" href="#install">Установить</a>
+      <a class="btn" href="https://github.com/DUFUSxD/lazeyka">★ Звезда на GitHub</a>
+      <a class="btn" href="https://github.com/DUFUSxD/lazeyka/discussions">Задать вопрос</a>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Лазейка · <a href="https://github.com/DUFUSxD/lazeyka/blob/main/LICENSE">MIT</a> · ядро <a href="https://github.com/MetaCubeX/mihomo">mihomo</a></span>
+    <span><a href="https://github.com/DUFUSxD/lazeyka/releases">Версии</a> · <a href="https://github.com/DUFUSxD/lazeyka/issues">Сообщить об ошибке</a> · <a href="en/" hreflang="en">English</a></span>
+  </div>
+</footer>
+<script>
+  for (const b of document.querySelectorAll('[data-copy]')) {
+    b.onclick = () => navigator.clipboard.writeText(document.getElementById(b.dataset.copy).textContent)
+      .then(() => { b.textContent = 'Скопировано ✓'; setTimeout(() => { b.textContent = 'Скопировать'; }, 2000); });
+  }
+</script>
+</body>
+</html>

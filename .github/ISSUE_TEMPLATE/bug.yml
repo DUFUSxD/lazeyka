@@ -1,0 +1,55 @@
+name: Что-то не работает · Bug report
+description: Лазейка ведёт себя не так, как ожидалось · Something doesn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Спасибо, что пишешь! **Не вставляй ссылки на подписки и secret** — это личные данные.
+        Сначала загляни в раздел [«Если что-то не работает»](https://github.com/DUFUSxD/lazeyka#если-что-то-не-работает) — там ответы на частые проблемы.
+
+        Thanks for reporting! **Don't paste subscription links or the secret** — they are private.
+  - type: textarea
+    id: what
+    attributes:
+      label: Что случилось · What happened
+      description: Что делал, что ожидал и что получилось. Скриншот окна Лазейки очень поможет. · Steps, expected and actual result; a screenshot of the Lazeyka window helps a lot.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Версия Лазейки · Lazeyka version
+      description: ⚙ → «Проверки и обновления» → «Установлена …» · ⚙ → “Checks and updates” → “Installed …”
+      placeholder: "1.6.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Браузер · Browser
+      options:
+        - Google Chrome
+        - Microsoft Edge
+        - Яндекс.Браузер · Yandex Browser
+        - Brave
+        - Другой · Other
+    validations:
+      required: true
+  - type: dropdown
+    id: windows
+    attributes:
+      label: Windows
+      options:
+        - Windows 11
+        - Windows 10
+  - type: input
+    id: panel
+    attributes:
+      label: Панель или провайдер подписки, если знаешь · Subscription panel or provider, if known
+      placeholder: Remnawave, 3x-ui, Marzban…
+  - type: textarea
+    id: extra
+    attributes:
+      label: Что ещё может помочь · Anything else
+      description: Текст ошибки из окна, вывод диагностики из docs/troubleshooting.md — без ссылок с токенами. · Error text, diagnostics output — without links containing tokens.

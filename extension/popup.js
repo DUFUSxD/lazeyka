@@ -376,14 +376,17 @@ function subIcon(sub) {
   const img = new Image(16, 16);
   img.className = 'sub-ico';
   img.alt = '';
-  const tries = known ? [known] : iconUrls([web, sub.url]);
-  img.onload = () => icons.set(key, img.src);
+  if (known) { img.src = known; return img; }
+  // пока ищем картинку (сайт может отвечать долго) — кружок с буквой, а не пустое место
+  const box = letter();
+  const tries = iconUrls([web, sub.url]);
+  img.onload = () => { icons.set(key, img.src); box.replaceWith(img); };
   img.onerror = () => {
     const next = tries.shift();
-    if (next) img.src = next; else { icons.set(key, null); img.replaceWith(letter()); }
+    if (next) img.src = next; else icons.set(key, null);
   };
   img.src = tries.shift();
-  return img;
+  return box;
 }
 
 async function refreshHealth() {

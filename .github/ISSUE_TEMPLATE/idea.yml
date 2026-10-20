@@ -1,0 +1,19 @@
+name: Идея · Feature request
+description: Чего не хватает в Лазейке · What Lazeyka is missing
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Что хочется сделать · What you want to do
+      description: Опиши задачу, а не только решение — так проще найти лучший вариант. · Describe the problem, not just the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Как это могло бы выглядеть · How it could work
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Как обходишься сейчас · Current workaround

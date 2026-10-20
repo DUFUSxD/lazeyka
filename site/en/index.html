@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lazeyka — a browser-only VPN with your own VLESS, Reality, Hysteria2 subscriptions</title>
+<meta name="description" content="Free extension for Chrome, Edge and Yandex Browser: a VPN for the browser only, through your own VLESS/Reality, VMess, Trojan, Shadowsocks or Hysteria2 subscription on the mihomo core, with per-site rules.">
+<link rel="canonical" href="https://dufusxd.github.io/lazeyka/en/">
+<link rel="alternate" hreflang="ru" href="https://dufusxd.github.io/lazeyka/">
+<link rel="alternate" hreflang="en" href="https://dufusxd.github.io/lazeyka/en/">
+<link rel="alternate" hreflang="x-default" href="https://dufusxd.github.io/lazeyka/">
+<link rel="icon" href="../images/icon128.png">
+<meta name="theme-color" content="#14171c">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="en_US">
+<meta property="og:site_name" content="Lazeyka">
+<meta property="og:title" content="Lazeyka — a browser-only VPN with your own subscriptions">
+<meta property="og:description" content="Paste your VLESS/Reality subscription link, press the button — websites go through your VPN while everything else on the computer stays direct.">
+<meta property="og:url" content="https://dufusxd.github.io/lazeyka/en/">
+<meta property="og:image" content="https://dufusxd.github.io/lazeyka/images/hero.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="../style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Lazeyka",
+  "alternateName": "Лазейка",
+  "description": "A browser-only VPN through your own VLESS/Reality, VMess, Trojan, Shadowsocks and Hysteria2 subscriptions on the mihomo core, with per-site rules.",
+  "applicationCategory": "BrowserApplication",
+  "operatingSystem": "Windows 10, Windows 11",
+  "url": "https://dufusxd.github.io/lazeyka/en/",
+  "downloadUrl": "https://github.com/DUFUSxD/lazeyka",
+  "license": "https://opensource.org/licenses/MIT",
+  "inLanguage": ["en", "ru"],
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "screenshot": "https://dufusxd.github.io/lazeyka/images/main-en.png"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    { "@type": "Question", "name": "Can I use a VLESS / Reality subscription right in the browser?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Browsers can't speak VLESS, so a small mihomo core runs next to the browser and the Lazeyka extension controls it. One command to install, everything else in the extension window." } },
+    { "@type": "Question", "name": "Why not just use v2rayN, Hiddify or Happ on my PC?",
+      "acceptedAnswer": { "@type": "Answer", "text": "With Lazeyka only the browser goes through the VPN: games, torrents, Windows updates and work apps stay direct and don't use your subscription traffic, and you can pick a server per site." } },
+    { "@type": "Question", "name": "Will my Remnawave / 3x-ui / Marzban subscription work?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes — any https:// subscription link in Clash/mihomo or base64 format. With a device limit, Lazeyka counts as a separate device." } },
+    { "@type": "Question", "name": "Is it free?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes, Lazeyka is free and open source (MIT). You only pay for your subscription." } },
+    { "@type": "Question", "name": "Where do my subscriptions go?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Nowhere: they stay in your browser and in the core on your computer. Lazeyka has no servers, accounts or telemetry." } }
+  ]
+}
+</script>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="../images/icon128.png" alt="">Lazeyka</a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#features">Features</a>
+      <a href="#compare">Comparison</a>
+      <a href="#install">Install</a>
+      <a href="#faq">FAQ</a>
+      <a href="https://github.com/DUFUSxD/lazeyka">GitHub</a>
+    </nav>
+    <a class="lang" href="../" hreflang="ru" lang="ru">Русский</a>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <div>
+      <h1>A VPN for your browser only — <span>with your own subscriptions</span></h1>
+      <p class="lead">Paste your VLESS, Reality or Hysteria2 subscription link, press the big green button, and websites open through your VPN. Games, messengers and Windows updates keep working directly, as usual.</p>
+      <div class="cta">
+        <a class="btn primary" href="#install">Install in 5 minutes</a>
+        <a class="btn" href="https://github.com/DUFUSxD/lazeyka">★ GitHub</a>
+      </div>
+      <p class="facts">Free · open source (MIT) · Windows 10 and 11 · Chrome, Edge, Yandex Browser</p>
+    </div>
+    <div class="shot"><img src="../images/demo-en.gif" width="420" height="723" alt="Lazeyka window: turning on, collapsing a subscription, picking a server, settings"></div>
+  </div>
+
+  <ul class="wrap protocols" aria-label="Supported">
+    <li>VLESS</li><li>Reality</li><li>VMess</li><li>Trojan</li><li>Shadowsocks</li><li>Hysteria2</li><li>TUIC</li>
+    <li>Remnawave</li><li>3x-ui</li><li>Marzban</li>
+  </ul>
+
+  <section id="features">
+    <div class="wrap">
+      <h2>What it does</h2>
+      <div class="grid">
+        <div class="card"><div class="ico">🧭</div><h3>Browser only</h3><p>Websites go through the VPN, not the whole computer: games, torrents and work apps don't use your subscription traffic.</p></div>
+        <div class="card"><div class="ico">🎯</div><h3>Per-site rules</h3><p>Your own “always via VPN” and “always direct” lists, and a dedicated server for a site — say, ChatGPT via the US.</p></div>
+        <div class="card"><div class="ico">🏦</div><h3>Ready for Russia</h3><p>Russian banks and services open directly; ~1200 sites blocked in Russia go via VPN, and the list updates itself.</p></div>
+        <div class="card"><div class="ico">⚡</div><h3>Auto server</h3><p>Picks the fastest working server and switches when the current one goes down or gets blocked.</p></div>
+        <div class="card"><div class="ico">🔒</div><h3>No leaks</h3><p>If the core crashes, VPN sites don't open instead of leaking your real IP. WebRTC leaks are blocked too.</p></div>
+        <div class="card"><div class="ico">📊</div><h3>Traffic and expiry</h3><p>See used traffic and the expiry date; get notified 3 days before it ends and at 90% traffic.</p></div>
+        <div class="card"><div class="ico">🚀</div><h3>Speed test</h3><p>Mbit/s for any server without switching to it. Plus ping, sorting and search by country.</p></div>
+        <div class="card"><div class="ico">🔄</div><h3>One-click updates</h3><p>New versions install with the “Update” button right in the window. English and Russian interface.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap gallery">
+      <figure><img src="../images/main-en.png" width="720" height="1300" alt="Lazeyka is on: open site card and servers by subscription" loading="lazy"><figcaption>Site card and servers by subscription</figcaption></figure>
+      <figure><img src="../images/site-server-en.png" width="720" height="1300" alt="A dedicated server for a site" loading="lazy"><figcaption>A dedicated server for a site</figcaption></figure>
+      <figure><img src="../images/settings-rules-en.png" width="720" height="1210" alt="Settings: which sites go via VPN" loading="lazy"><figcaption>Which sites go via VPN</figcaption></figure>
+    </div>
+  </section>
+
+  <section id="compare">
+    <div class="wrap">
+      <h2>How it differs from v2rayN, Hiddify and VPN extensions</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th></th><th>Lazeyka</th><th>v2rayN, Hiddify, Happ on a PC</th><th>VPN extensions from the store</th></tr></thead>
+          <tbody>
+            <tr><th>What goes via VPN</th><td>the browser only, with per-site rules</td><td>the whole computer, or every app using the system proxy</td><td>the browser only</td></tr>
+            <tr><th>Whose servers</th><td><b>your subscriptions</b></td><td>your subscriptions</td><td>the extension's own servers</td></tr>
+            <tr><th>Protocols</th><td>VLESS/Reality, VMess, Trojan, Shadowsocks, Hysteria2, TUIC</td><td>the same</td><td>usually just their own</td></tr>
+            <tr><th>A server for one site</th><td>two clicks</td><td>in routing rules</td><td>rarely</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <h2>Install — 5 minutes</h2>
+      <ol class="steps">
+        <li><h3>Install the core with one command</h3><p>Press Win + X → “Terminal”, paste the command and press Enter. The installer talks in Russian — when you see the green «Готово» (“Done”), it's finished.</p>
+          <div class="cmd"><code id="cmd">irm https://raw.githubusercontent.com/DUFUSxD/lazeyka/main/install.ps1 | iex</code><button type="button" data-copy="cmd">Copy</button></div></li>
+        <li><h3>Add the extension to your browser</h3><p>On the extensions page turn on “Developer mode”, click “Load unpacked” and pick <code>%LOCALAPPDATA%\Lazeyka\extension</code>.</p></li>
+        <li><h3>Paste the secret and your subscription</h3><p>The secret is already in your clipboard after install. Paste it and your subscription link in settings, click “Save”, then the big button.</p></li>
+      </ol>
+      <p>Step-by-step guide with screenshots — <a href="https://github.com/DUFUSxD/lazeyka/blob/main/README.en.md#install--5-minutes">in the README on GitHub</a>.</p>
+    </div>
+  </section>
+
+  <section id="faq" class="faq">
+    <div class="wrap">
+      <h2>FAQ</h2>
+      <details><summary>Can I use a VLESS / Reality subscription right in the browser?</summary><p>Yes. Browsers can't speak VLESS — extensions only get HTTP and SOCKS proxies — so a small mihomo core runs next to the browser and Lazeyka controls it. One command to install, everything else in the extension window.</p></details>
+      <details><summary>Why not just use v2rayN, Hiddify or Happ on my PC?</summary><p>With Lazeyka only the browser goes through the VPN: games, torrents, Windows updates and work apps stay direct and don't eat your subscription traffic, and you can pick a server per site.</p></details>
+      <details><summary>Will my Remnawave / 3x-ui / Marzban / Telegram-bot subscription work?</summary><p>Yes — any https:// subscription link in Clash/mihomo (YAML) format or as a base64 list of keys. With a device limit, Lazeyka counts as a separate device, like a phone.</p></details>
+      <details><summary>Is it free?</summary><p>Yes, Lazeyka is free and open source (MIT). You only pay for your subscription to whoever provides it.</p></details>
+      <details><summary>Where do my subscriptions go?</summary><p>Nowhere: they stay in your browser and in the core on your computer. Lazeyka has no servers, accounts or telemetry.</p></details>
+      <details><summary>Is there a Mac, Linux or mobile version?</summary><p>Not yet — Windows 10/11 and Chromium browsers only: Chrome, Edge, Yandex Browser, Brave.</p></details>
+    </div>
+  </section>
+
+  <div class="wrap final">
+    <h2>Give it a try</h2>
+    <p>If Lazeyka is useful to you, star it on GitHub — that helps others find it.</p>
+    <div class="cta">
+      <a class="btn primary" href="#install">Install</a>
+      <a class="btn" href="https://github.com/DUFUSxD/lazeyka">★ Star on GitHub</a>
+      <a class="btn" href="https://github.com/DUFUSxD/lazeyka/discussions">Ask a question</a>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Lazeyka · <a href="https://github.com/DUFUSxD/lazeyka/blob/main/LICENSE">MIT</a> · powered by <a href="https://github.com/MetaCubeX/mihomo">mihomo</a></span>
+    <span><a href="https://github.com/DUFUSxD/lazeyka/releases">Releases</a> · <a href="https://github.com/DUFUSxD/lazeyka/issues">Report a bug</a> · <a href="../" hreflang="ru">Русский</a></span>
+  </div>
+</footer>
+<script>
+  for (const b of document.querySelectorAll('[data-copy]')) {
+    b.onclick = () => navigator.clipboard.writeText(document.getElementById(b.dataset.copy).textContent)
+      .then(() => { b.textContent = 'Copied ✓'; setTimeout(() => { b.textContent = 'Copy'; }, 2000); });
+  }
+</script>
+</body>
+</html>
