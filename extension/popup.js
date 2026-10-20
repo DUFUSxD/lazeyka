@@ -1,8 +1,8 @@
 import {
   GROUP, AUTO, CONTROLLER, load, norm, parseList, parseSubs, plainName, subName, buildRules, decide, isLan,
   pushConfig, ensureConfig, health, selectServer, testGroup, proxyState, applyProxy, toggle, updateBlocked, refreshSubs, viaVpn,
-  exportSettings, importSettings, checkUpdate, newer, UPDATE_CMD, PING_OPTIONS, UPDATE_OPTIONS, SORT_OPTIONS,
-  ensureHwid, subStatus, sortServers, speedTest, subOrigins, iconUrls, LANG_OPTIONS,
+  exportSettings, importSettings, checkUpdate, newer, UPDATE_CMD, STORE_INSTALL_CMD, PING_OPTIONS, UPDATE_OPTIONS, SORT_OPTIONS,
+  ensureHwid, subStatus, sortServers, speedTest, subOrigins, iconUrls, LANG_OPTIONS, fromStore,
 } from './lib.js';
 import { t, plural, lang, translateDom } from './i18n.js';
 import { serverFilter } from './countries.js';
@@ -26,6 +26,9 @@ let s = await load(); // он же ставит язык
 document.documentElement.lang = lang();
 translateDom(document.body);
 s.hwid ||= await ensureHwid(); // нужен в конфиге ядра, если popup открыли раньше, чем проснулся service worker
+// из магазина: обновления приходят из магазина, а ядра может ещё не быть — оно ставится командой установщика
+const STORE = await fromStore();
+const INSTALL_CMD = STORE ? STORE_INSTALL_CMD : UPDATE_CMD;
 let on = false;
 let h;                 // сводка health(); undefined — ещё не загрузили, null — ядро недоступно
 let rest = s.rest;     // черновик «Остальные сайты» в настройках
@@ -49,7 +52,9 @@ function toast(text, kind = '') {
 
 const ALERTS = {
   setup: ['Почти готово', 'Открой настройки: вставь secret из установщика и ссылку на подписку.', null, 'Открыть настройки'],
-  core: ['Ядро mihomo не запущено', 'Нажми «Запустить ядро». Если не сработает — Win+R, вставь команду ниже и Enter.', CORE_CMD, 'Запустить ядро', 'Скопировать команду'],
+  core: STORE
+    ? ['Ядро mihomo не запущено', 'Лазейке нужна программа-ядро на компьютере. Нажми «Запустить ядро»; если ядро ещё не установлено — Win+R, вставь команду ниже и Enter.', STORE_INSTALL_CMD, 'Запустить ядро', 'Скопировать команду']
+    : ['Ядро mihomo не запущено', 'Нажми «Запустить ядро». Если не сработает — Win+R, вставь команду ниже и Enter.', CORE_CMD, 'Запустить ядро', 'Скопировать команду'],
   secret: ['Неверный secret', 'Скопируй его заново из %LOCALAPPDATA%\\Lazeyka\\core\\config.yaml (строка secret:).', null, 'Открыть настройки'],
   other: ['Прокси занят другим расширением', 'Отключи другие VPN- и прокси-расширения: прокси в браузере может держать только одно расширение.', null, 'Открыть расширения'],
   policy: ['Прокси заблокирован политикой', 'Администратор этого компьютера запретил расширениям менять прокси.', null, null],
@@ -78,14 +83,15 @@ function showAlert(kind) {
   $('alertBtn2').textContent = ALERTS[kind][4] ? t(ALERTS[kind][4]) : '';
 }
 $('alertBtn').onclick = () => run(() => busy($('alertBtn'), async () => ALERT_ACTIONS[alertKind]?.()));
-$('alertBtn2').onclick = () => navigator.clipboard.writeText(CORE_CMD).then(() => toast(t('Команда скопирована: Win+R → вставить → Enter')));
+$('alertBtn2').onclick = () => navigator.clipboard.writeText($('alertCode').textContent).then(() => toast(t('Команда скопирована: Win+R → вставить → Enter')));
 
 async function startCore() {
   const r = await host('start');
   if (!r?.ok) {
-    await navigator.clipboard.writeText(CORE_CMD).catch(() => {});
-    const why = /forbidden/i.test(r?.error) ? hostProblem(r.error)
-      : /not found/i.test(r?.error) ? t('Кнопка заработает после обновления через команду.') : t('Не получилось: {0}.', r?.error);
+    // помощника нет — ядро не установлено (или установка совсем старая): нужна команда установщика, а не запуска
+    const missing = /not found/i.test(r?.error);
+    await navigator.clipboard.writeText(missing ? INSTALL_CMD : CORE_CMD).catch(() => {});
+    const why = /forbidden/i.test(r?.error) ? hostProblem(r.error) : missing ? t('Ядро ещё не установлено.') : t('Не получилось: {0}.', r?.error);
     throw new Error(t('{0} Пока — Win+R, вставь (команда уже скопирована), Enter', why));
   }
   toast(t('Запускаю ядро…'));
@@ -412,6 +418,8 @@ async function render() {
   if (!on) stopTraffic();
   if (st.levelOfControl === 'controlled_by_other_extensions') return showAlert('other');
   if (st.levelOfControl === 'not_controllable') return showAlert('policy');
+  // без ядра настраивать нечего: сначала «ядро не запущено» с командой (TypeError от fetch ловит run)
+  if (!s.secret) await fetch(`http://${CONTROLLER}/version`);
   if (!s.secret || !s.subs.length) { renderServers(); return showAlert('setup'); }
   await ensureConfig(s);
   showAlert(null);
@@ -537,6 +545,12 @@ $('search').oninput = renderServers;
 // --- обновления
 const fmtTime = (ms) => new Date(ms).toLocaleString(lang(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 async function renderUpdate() {
+  if (STORE) { // обновляет магазин: ни баннера, ни проверок GitHub
+    $('updateEvery').closest('.field-row').hidden = true;
+    $('checkUpd').hidden = true;
+    $('verInfo').textContent = t('Установлена {0} · обновляется через магазин', VERSION);
+    return;
+  }
   const { update, dismissedVersion } = await chrome.storage.local.get(['update', 'dismissedVersion']);
   const has = !!update && newer(update.latest, VERSION);
   $('upd').hidden = !has || dismissedVersion === update.latest;

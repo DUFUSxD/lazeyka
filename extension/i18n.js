@@ -135,7 +135,10 @@ export const EN = {
   'Прокси заблокирован политикой': 'The proxy is locked by policy',
   'Администратор этого компьютера запретил расширениям менять прокси.': 'The administrator of this computer doesn’t allow extensions to change the proxy.',
   'Команда скопирована: Win+R → вставить → Enter': 'Command copied: Win+R → paste → Enter',
-  'Кнопка заработает после обновления через команду.': 'The button will work after updating with the command.',
+  'Ядро ещё не установлено.': 'The core is not installed yet.',
+  'Лазейке нужна программа-ядро на компьютере. Нажми «Запустить ядро»; если ядро ещё не установлено — Win+R, вставь команду ниже и Enter.':
+    'Lazeyka needs a core program on this computer. Press “Start core”; if the core isn’t installed yet — Win+R, paste the command below and press Enter.',
+  'Установлена {0} · обновляется через магазин': 'Installed {0} · updated by the store',
   'Не получилось: {0}.': 'Didn’t work: {0}.',
   '{0} Пока — Win+R, вставь (команда уже скопирована), Enter': '{0} For now — Win+R, paste (the command is already copied), Enter',
   'Запускаю ядро…': 'Starting the core…',
