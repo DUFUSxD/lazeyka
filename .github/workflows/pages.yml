@@ -1,0 +1,37 @@
+# Сайт проекта на GitHub Pages: site/ + картинки из docs/images. Собирается при изменении этих файлов в main.
+name: Сайт
+
+on:
+  push:
+    branches: [main]
+    paths: [site/**, docs/images/**, extension/icons/**, .github/workflows/pages.yml]
+  workflow_dispatch: # пересобрать вручную: Actions → Сайт → Run workflow
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Собрать сайт
+        run: |
+          mkdir -p _site/images
+          cp -r site/. _site/
+          cp docs/images/*.png docs/images/*.gif extension/icons/icon128.png _site/images/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

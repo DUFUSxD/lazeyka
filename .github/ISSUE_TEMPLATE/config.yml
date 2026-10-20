@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Вопрос по настройке · Setup question
+    url: https://github.com/DUFUSxD/lazeyka/discussions
+    about: Как настроить, какую подписку взять, как сделать то или иное — в обсуждениях. · Questions and how-tos go to Discussions.
+  - name: Диагностика · Troubleshooting
+    url: https://github.com/DUFUSxD/lazeyka/blob/main/docs/troubleshooting.md
+    about: Как проверить ядро, помощника и подписку из PowerShell. · How to check the core, helper and subscription.
