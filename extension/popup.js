@@ -10,7 +10,12 @@ const VERSION = chrome.runtime.getManifest().version;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // помощник (core/host.ps1) вызывается через service worker — он живёт, даже если popup закроют
 const host = (cmd) => chrome.runtime.sendMessage({ host: cmd });
-const hostMissing = (e = '') => /not found|forbidden|не найден/i.test(e);
+// Почему помощник недоступен — человеческими словами; null — помощник есть, ошибка другая.
+function hostProblem(e = '') {
+  if (/forbidden/i.test(e)) return 'Лазейка загружена не из папки установщика (%LOCALAPPDATA%\\Lazeyka\\extension), поэтому кнопка не работает. Загрузи расширение оттуда или выполни команду.';
+  if (/not found/i.test(e)) return 'Обновление в один клик заработает после этой версии — сейчас нужно один раз выполнить команду.';
+  return null;
+}
 const WHY = { list: 'твой список', blocked: 'заблокирован в РФ', ru: 'российский сайт', rest: 'остальные сайты', lan: 'локальная сеть' };
 
 let s = await load();
@@ -72,9 +77,9 @@ async function startCore() {
   const r = await host('start');
   if (!r?.ok) {
     await navigator.clipboard.writeText(CORE_CMD).catch(() => {});
-    throw new Error(hostMissing(r?.error)
-      ? 'Кнопка заработает после обновления через команду. Пока — Win+R, вставь (команда уже скопирована), Enter'
-      : `Не получилось: ${r?.error}. Команда скопирована — Win+R, вставь, Enter`);
+    const why = /forbidden/i.test(r?.error) ? hostProblem(r.error)
+      : /not found/i.test(r?.error) ? 'Кнопка заработает после обновления через команду.' : `Не получилось: ${r?.error}.`;
+    throw new Error(`${why} Пока — Win+R, вставь (команда уже скопирована), Enter`);
   }
   toast('Запускаю ядро…');
   for (let i = 0; i < 20; i++) {
@@ -284,9 +289,7 @@ function showManualUpdate(err) {
   $('upd').hidden = false;
   $('updManual').hidden = false;
   $('updCmd').textContent = UPDATE_CMD;
-  $('updErr').textContent = hostMissing(err)
-    ? 'Обновление в один клик заработает после этой версии — сейчас нужно один раз выполнить команду.'
-    : `Не получилось обновить автоматически: ${err}`;
+  $('updErr').textContent = hostProblem(err) ?? `Не получилось обновить автоматически: ${err}`;
 }
 
 $('updBtn').onclick = () => run(() => busy($('updBtn'), async () => {

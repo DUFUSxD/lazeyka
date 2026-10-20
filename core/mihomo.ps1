@@ -56,8 +56,8 @@ function Get-ExtId([string]$path) {
 }
 $ext = Join-Path (Split-Path $dir -Parent) 'extension'
 if (Test-Path (Join-Path $dir 'host.bat')) {
-    # путь как в переменной и как на диске — на случай разного регистра букв
-    $ids = @($ext, (Get-Item $ext -ErrorAction SilentlyContinue).FullName) | Where-Object { $_ } | ForEach-Object { Get-ExtId $_ } | Select-Object -Unique
+    # ponytail: ID только для папки установщика; загрузили расширение из другой папки — popup подскажет
+    $ids = @(Get-ExtId $ext)
     $hostJson = Join-Path $dir 'host.json'
     $manifest = [ordered]@{
         name = 'com.lazeyka.host'; description = 'Lazeyka helper: update and start core'; path = 'host.bat'; type = 'stdio'
