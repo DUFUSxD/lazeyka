@@ -107,14 +107,9 @@
 
     <section class="card">
       <h3>Какие сайты через VPN</h3>
-      <div class="field">Остальные сайты
-        <div class="seg" id="restSeg" role="radiogroup" aria-label="Остальные сайты">
-          <button data-v="vpn" role="radio">Через VPN</button>
-          <button data-v="direct" role="radio">Напрямую</button>
-        </div>
-      </div>
       <label class="check"><input type="checkbox" id="ruDirect"><span>Российские сайты напрямую<span class="hint">.ru, .рф, .su, Яндекс, VK, Сбер — банки и Госуслуги не ругаются на зарубежный IP</span></span></label>
       <label class="check"><input type="checkbox" id="useBlocked"><span>Заблокированное в РФ — через VPN<span class="hint" id="blockedInfo"></span></span></label>
+      <label class="check"><input type="checkbox" id="restVpn"><span>Все остальные сайты — через VPN<span class="hint">Если выключить, через VPN пойдут только заблокированное и список «Всегда через VPN»</span></span></label>
       <label class="check"><input type="checkbox" id="webrtc"><span>Защита от утечки IP через WebRTC<span class="hint">Звонки в браузере пойдут по TCP</span></span></label>
       <label class="field">Всегда через VPN <span class="hint">— домен покрывает поддомены</span>
         <textarea id="vpnList" rows="3" placeholder="youtube.com&#10;chatgpt.com" spellcheck="false"></textarea>

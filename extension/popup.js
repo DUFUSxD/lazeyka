@@ -37,7 +37,6 @@ $('updHint').textContent = t('{0}, вставь команду и Enter — да
 const copied = () => toast(t('Команда скопирована: {0} → вставить → Enter', t(OS.runShort)));
 let on = false;
 let h;                 // сводка health(); undefined — ещё не загрузили, null — ядро недоступно
-let rest = s.rest;     // черновик «Остальные сайты» в настройках
 let bindings = {};     // черновик «Свои серверы для сайтов» в настройках
 let polls = 0;         // сколько раз подряд перепроверили «Авто подбирает сервер…»
 let pollTimer;
@@ -626,9 +625,8 @@ for (const [id, opts] of [['pingInterval', PING_OPTIONS], ['updateEvery', UPDATE
 }
 
 function fillSettings() {
-  rest = s.rest;
   bindings = { ...s.siteServers };
-  for (const b of document.querySelectorAll('#restSeg button')) b.setAttribute('aria-checked', String(b.dataset.v === rest));
+  $('restVpn').checked = s.rest === 'vpn';
   for (const k of ['ruDirect', 'useBlocked', 'webrtc', 'subViaVpn', 'hideDead', 'pingOnOpen']) $(k).checked = s[k];
   for (const k of ['pingInterval', 'updateEvery', 'sortServers', 'lang']) $(k).value = s[k];
   renderMetaHint();
@@ -657,13 +655,6 @@ function renderBindings() {
     li.append(label, x);
     return li;
   }));
-}
-
-for (const b of document.querySelectorAll('#restSeg button')) {
-  b.onclick = () => {
-    rest = b.dataset.v;
-    for (const x of document.querySelectorAll('#restSeg button')) x.setAttribute('aria-checked', String(x === b));
-  };
 }
 
 function showSettings() {
@@ -728,7 +719,7 @@ $('save').onclick = () => run(() => busy($('save'), async () => {
     subs: subs.map((x) => x.url),
     subNames: Object.fromEntries(subs.filter((x) => x.name).map((x) => [x.url, x.name])),
     secret: $('secret').value.trim(),
-    rest,
+    rest: $('restVpn').checked ? 'vpn' : 'direct',
     ruDirect: $('ruDirect').checked,
     useBlocked: $('useBlocked').checked,
     webrtc: $('webrtc').checked,

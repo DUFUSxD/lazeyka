@@ -110,7 +110,7 @@
     <div class="wrap gallery">
       <figure><img src="../images/main-en.png" width="720" height="1300" alt="Lazeyka is on: open site card and servers by subscription" loading="lazy"><figcaption>Site card and servers by subscription</figcaption></figure>
       <figure><img src="../images/site-server-en.png" width="720" height="1300" alt="A dedicated server for a site" loading="lazy"><figcaption>A dedicated server for a site</figcaption></figure>
-      <figure><img src="../images/settings-rules-en.png" width="720" height="1210" alt="Settings: which sites go via VPN" loading="lazy"><figcaption>Which sites go via VPN</figcaption></figure>
+      <figure><img src="../images/settings-rules-en.png" width="720" height="1212" alt="Settings: which sites go via VPN" loading="lazy"><figcaption>Which sites go via VPN</figcaption></figure>
     </div>
   </section>
 
@@ -138,7 +138,8 @@
         <li><h3>Install the core with one command</h3><p>Windows: press Win + X → “Terminal”, paste the command and press Enter. The installer talks in Russian — when you see the green «Готово» (“Done”), it's finished. No admin rights needed.</p>
           <div class="cmd"><code id="cmd">irm https://raw.githubusercontent.com/DUFUSxD/lazeyka/main/install.ps1 | iex</code><button type="button" data-copy="cmd">Copy</button></div>
           <p>macOS and Linux: open a terminal (on a Mac — Cmd + Space → “Terminal”) and run:</p>
-          <div class="cmd"><code id="cmd-sh">curl -fsSL https://raw.githubusercontent.com/DUFUSxD/lazeyka/main/install.sh | sh</code><button type="button" data-copy="cmd-sh">Copy</button></div></li>
+          <div class="cmd"><code id="cmd-sh">curl -fsSL https://raw.githubusercontent.com/DUFUSxD/lazeyka/main/install.sh | sh</code><button type="button" data-copy="cmd-sh">Copy</button></div>
+          <p>Linux says “curl: command not found”? First run <code>sudo apt install curl</code> (Ubuntu, Debian, Mint), <code>sudo dnf install curl</code> (Fedora) or <code>sudo pacman -S curl</code> (Arch), then repeat the command.</p></li>
         <li><h3>Add the extension to your browser</h3><p>On the extensions page turn on “Developer mode”, click “Load unpacked” and pick <code>%LOCALAPPDATA%\Lazeyka\extension</code> (on macOS and Linux — <code>~/Lazeyka/extension</code>).</p></li>
         <li><h3>Paste the secret and your subscription</h3><p>The secret is already in your clipboard after install. Paste it and your subscription link in settings, click “Save”, then the big button.</p></li>
       </ol>
