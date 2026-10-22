@@ -107,6 +107,7 @@ Everything is per-user — no admin rights needed.
    ```sh
    curl -fsSL https://raw.githubusercontent.com/DUFUSxD/lazeyka/main/install.sh | sh
    ```
+   Linux says `curl: command not found`? Install curl first and run the command again: `sudo apt install curl` (Ubuntu, Debian, Mint), `sudo dnf install curl` (Fedora) or `sudo pacman -S curl` (Arch). The terminal asks for your account password — it's only needed for curl; Lazeyka itself installs without it. macOS always has curl.
 3. In half a minute you'll see **«Готово»** (“Done”) and the secret. On macOS it's already in the clipboard; on Linux too if `wl-copy` or `xclip` is installed — otherwise copy it from the terminal window.
 
 Lazeyka goes to `~/Lazeyka`, the core starts by itself when you log in (macOS — LaunchAgent, Linux — `systemd --user`). No admin rights needed. macOS may show a “Background Items Added” notification mentioning `mihomo` — that is Lazeyka's core and it is expected. Don't switch it off in Login Items, or the core won't start by itself after a reboot.
@@ -243,12 +244,12 @@ Not in Russia? Turn off “Russian sites direct” and “Sites blocked in Russi
 
 ### Presets
 
-| I want | “Other sites” | Russian sites direct | Blocked in Russia via VPN |
+| I want | Russian sites direct | Blocked in Russia via VPN | All other sites via VPN |
 |---|---|---|---|
-| **Everything via VPN, but banks and Gosuslugi work** (default) | Via VPN | ✅ | ✅ |
-| **Only blocked sites via VPN** — fastest, least traffic | Direct | ✅ | ✅ |
-| **Only my sites via VPN** | Direct | doesn't matter | ❌ — and fill in “Always via VPN” |
-| **Absolutely everything via VPN** | Via VPN | ❌ | ✅ |
+| **Everything via VPN, but banks and Gosuslugi work** (default) | ✅ | ✅ | ✅ |
+| **Only blocked sites via VPN** — fastest, least traffic | ✅ | ✅ | ❌ |
+| **Only my sites via VPN** | doesn't matter | ❌ — and fill in “Always via VPN” | ❌ |
+| **Absolutely everything via VPN** | ❌ | ✅ | ✅ |
 
 ## Updates
 

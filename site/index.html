@@ -110,7 +110,7 @@
     <div class="wrap gallery">
       <figure><img src="images/main.png" width="720" height="1300" alt="Лазейка включена: карточка открытого сайта и серверы по подпискам" loading="lazy"><figcaption>Карточка сайта и серверы по подпискам</figcaption></figure>
       <figure><img src="images/site-server.png" width="720" height="1300" alt="Свой сервер для сайта" loading="lazy"><figcaption>Свой сервер для сайта</figcaption></figure>
-      <figure><img src="images/settings-rules.png" width="720" height="1210" alt="Настройки: какие сайты через VPN" loading="lazy"><figcaption>Какие сайты через VPN</figcaption></figure>
+      <figure><img src="images/settings-rules.png" width="720" height="1212" alt="Настройки: какие сайты через VPN" loading="lazy"><figcaption>Какие сайты через VPN</figcaption></figure>
     </div>
   </section>
 
@@ -139,7 +139,8 @@
         <li><h3>Поставь ядро одной командой</h3><p>Windows: нажми Win + X → «Терминал», вставь команду и нажми Enter. Через полминуты появится зелёное «Готово». Права администратора не нужны.</p>
           <div class="cmd"><code id="cmd">irm https://raw.githubusercontent.com/DUFUSxD/lazeyka/main/install.ps1 | iex</code><button type="button" data-copy="cmd">Скопировать</button></div>
           <p>macOS и Linux: открой терминал (на Mac — Cmd + Пробел → «Терминал») и выполни:</p>
-          <div class="cmd"><code id="cmd-sh">curl -fsSL https://raw.githubusercontent.com/DUFUSxD/lazeyka/main/install.sh | sh</code><button type="button" data-copy="cmd-sh">Скопировать</button></div></li>
+          <div class="cmd"><code id="cmd-sh">curl -fsSL https://raw.githubusercontent.com/DUFUSxD/lazeyka/main/install.sh | sh</code><button type="button" data-copy="cmd-sh">Скопировать</button></div>
+          <p>Linux ответил «curl: command not found»? Сначала <code>sudo apt install curl</code> (Ubuntu, Debian, Mint), <code>sudo dnf install curl</code> (Fedora) или <code>sudo pacman -S curl</code> (Arch) — и повтори команду.</p></li>
         <li><h3>Добавь расширение в браузер</h3><p>На странице расширений включи «Режим разработчика», нажми «Загрузить распакованное» и выбери папку <code>%LOCALAPPDATA%\Lazeyka\extension</code> (на macOS и Linux — <code>~/Lazeyka/extension</code>).</p></li>
         <li><h3>Вставь secret и подписку</h3><p>Secret уже в буфере обмена после установки. Вставь его и ссылку на подписку в настройках, нажми «Сохранить» и большую кнопку.</p></li>
       </ol>
